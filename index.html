@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>大原牙醫瓷牙比色工具</title>
+  <meta name="description" content="比色板校正、實際臨床照與完成瓷牙照的 CIE Lab / CIEDE2000 比色紀錄工具。">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0e1012;
+      --panel: #191c1f;
+      --panel2: #22262a;
+      --line: #363b40;
+      --text: #f4f1eb;
+      --muted: #a9adb1;
+      --gold: #e2ad43;
+      --gold2: #f5cf7c;
+      --violet: #a889ff;
+      --blue: #55aaff;
+      --red: #ff6660;
+      --green: #4bd39b;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: radial-gradient(circle at 10% 0, rgba(226,173,67,.09), transparent 24%), var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+    button, input, select { font: inherit; }
+    button { border: 0; color: inherit; cursor: pointer; }
+
+    header {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 13px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid var(--line);
+      background: rgba(18,20,22,.96);
+      backdrop-filter: blur(14px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .logo {
+      width: 44px;
+      height: 44px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      color: #18130a;
+      background: linear-gradient(145deg, var(--gold2), var(--gold));
+      font-size: 25px;
+      font-weight: 900;
+    }
+    h1 { margin: 0; font-size: clamp(18px,2.2vw,26px); line-height: 1.15; }
+    .brand p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .actions { display: flex; align-items: center; gap: 8px; }
+    .privacy { color: var(--green); font-size: 12px; font-weight: 800; white-space: nowrap; }
+    .button {
+      min-height: 39px;
+      padding: 8px 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel2);
+      font-weight: 800;
+    }
+    .button.primary { border-color: var(--gold); color: #17120a; background: var(--gold); }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) minmax(340px,29vw);
+      align-items: start;
+    }
+    .workspace { min-width: 0; border-right: 1px solid var(--line); }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      padding: 11px 16px;
+      position: sticky;
+      top: 72px;
+      z-index: 10;
+      border-bottom: 1px solid var(--line);
+      background: rgba(23,25,27,.96);
+    }
+    .toolbar label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; font-weight: 700; }
+    input[type="range"] { width: 110px; accent-color: var(--gold); }
+    input[type="checkbox"] { accent-color: var(--gold); }
+    .workflow {
+      display: flex;
+      gap: 7px;
+      margin-left: auto;
+    }
+    .workflow span {
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .workflow span.done { border-color: rgba(75,211,155,.5); color: var(--green); background: rgba(75,211,155,.08); }
+
+    .photo-stack { display: grid; background: #090a0b; }
+    .photo-panel {
+      display: grid;
+      grid-template-rows: auto minmax(360px,46vh);
+      min-width: 0;
+      border-bottom: 1px solid #5b5f63;
+    }
+    .photo-head {
+      min-height: 59px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 15px;
+      border-bottom: 1px solid var(--line);
+      background: #191c1f;
+    }
+    .photo-title { display: flex; align-items: center; gap: 10px; font-weight: 900; }
+    .photo-title small { display: block; margin-top: 3px; color: var(--muted); font-weight: 500; }
+    .badge {
+      width: 31px;
+      height: 31px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: white;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .calibration .badge { background: #7558ca; }
+    .target .badge { background: #267fd5; }
+    .restoration .badge { background: #d84942; }
+    .upload {
+      min-height: 35px;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #2a2e32;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .canvas-wrap {
+      min-height: 0;
+      position: relative;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background:
+        linear-gradient(45deg,#121416 25%,transparent 25%),
+        linear-gradient(-45deg,#121416 25%,transparent 25%),
+        linear-gradient(45deg,transparent 75%,#121416 75%),
+        linear-gradient(-45deg,transparent 75%,#121416 75%),#0d0f10;
+      background-size: 24px 24px;
+      background-position: 0 0,0 12px,12px -12px,-12px 0;
+    }
+    canvas { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+    .empty {
+      position: absolute;
+      inset: 18px;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: 10px;
+      padding: 22px;
+      border: 1px dashed #565b60;
+      border-radius: 12px;
+      color: var(--muted);
+      text-align: center;
+      pointer-events: none;
+    }
+    .empty strong { color: var(--text); font-size: 18px; }
+    .plus {
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: rgba(255,255,255,.07);
+      font-size: 28px;
+    }
+
+    aside {
+      position: sticky;
+      top: 72px;
+      max-height: calc(100vh - 72px);
+      overflow-y: auto;
+      background: var(--panel);
+    }
+    .result-head { padding: 18px 18px 14px; border-bottom: 1px solid var(--line); }
+    .eyebrow { margin: 0 0 5px; color: var(--gold2); font-size: 11px; font-weight: 900; letter-spacing: .12em; }
+    h2 { margin: 0; font-size: 21px; }
+    .result-head > p:last-child { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .result-body { display: grid; gap: 13px; padding: 14px; }
+    .card { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
+    .card-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      color: #d9dbdd;
+      font-size: 12px;
+      letter-spacing: .03em;
+    }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 11px; }
+    .field { display: grid; gap: 5px; color: var(--muted); font-size: 11px; }
+    .field.full { grid-column: 1/-1; }
+    .field input, .field select {
+      width: 100%;
+      min-height: 35px;
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      color: var(--text);
+      background: #15181a;
+    }
+    .cal-status { padding: 12px; }
+    .status-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+    .status-pill { padding: 5px 8px; border-radius: 999px; color: #1a140b; background: var(--gold); font-size: 10px; font-weight: 900; }
+    .status-pill.ready { background: var(--green); }
+    .mini-table, .data-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .mini-table th, .mini-table td, .data-table th, .data-table td {
+      padding: 8px 9px;
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+    }
+    .mini-table th:first-child, .mini-table td:first-child, .data-table th:first-child, .data-table td:first-child { text-align: left; color: var(--muted); }
+    .mini-table tr:last-child td, .data-table tr:last-child td { border-bottom: 0; }
+    .delta { padding: 15px 12px; text-align: center; }
+    .delta output { display: block; color: var(--red); font-size: 52px; font-weight: 300; line-height: 1; }
+    .delta small { display: block; margin-top: 7px; color: var(--muted); }
+    .match { display: inline-flex; margin-top: 10px; padding: 5px 9px; border-radius: 999px; color: #18130a; background: var(--gold); font-size: 11px; font-weight: 900; }
+    .swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 11px; }
+    .swatch {
+      min-height: 68px;
+      display: flex;
+      align-items: flex-end;
+      padding: 8px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 8px;
+      color: rgba(20,18,15,.85);
+      background: #c7b59e;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .shade { display: grid; grid-template-columns: auto 1fr; gap: 11px; align-items: center; padding: 12px; }
+    .shade-chip { min-width: 66px; min-height: 51px; display: grid; place-items: center; border-radius: 8px; color: #21190f; background: #e4cfa7; font-size: 22px; font-weight: 900; }
+    .shade span { color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .export-box { display: grid; gap: 8px; padding: 11px; }
+    .export-box .button { width: 100%; }
+    .export-box p, .note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .note { padding: 11px 12px; }
+    .note strong { color: var(--gold2); }
+    .hidden { display: none !important; }
+
+    @media (max-width: 1000px) {
+      main { grid-template-columns: 1fr; }
+      .workspace { border-right: 0; }
+      aside { position: static; max-height: none; border-top: 1px solid var(--line); }
+    }
+    @media (max-width: 680px) {
+      header { align-items: flex-start; padding: 11px; }
+      .brand p, .privacy, .actions .button:not(.primary), .workflow { display: none; }
+      .logo { width: 38px; height: 38px; }
+      .toolbar { top: 62px; }
+      .photo-panel { grid-template-rows: auto 52vh; }
+      .photo-title small { display: none; }
+      .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+    }
+    @media print {
+      header, .workspace, .export-box { display: none !important; }
+      main { display: block; }
+      aside { position: static; max-height: none; color: #111; background: #fff; }
+      .card { break-inside: avoid; color: #111; background: #fff; border-color: #bbb; }
+      .card-title, .mini-table td, .mini-table th, .data-table td, .data-table th { border-color: #ccc; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">齒</div>
+      <div>
+        <h1>大原牙醫瓷牙比色工具</h1>
+        <p>比色板校正 · 臨床牙 · 完成瓷牙 · CIEDE2000</p>
+      </div>
+    </div>
+    <div class="actions">
+      <span class="privacy">● 照片僅在本機處理</span>
+      <button class="button" id="resetButton" type="button">清除重來</button>
+      <button class="button primary" id="docButton" type="button">匯出 Google Docs 報告</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="workspace" aria-label="三階段比色照片">
+      <div class="toolbar">
+        <label>取樣半徑 <input id="radius" type="range" min="6" max="60" value="24"><span id="radiusValue">24 px</span></label>
+        <label><input id="excludeHighlights" type="checkbox" checked> 排除高光</label>
+        <span style="color:var(--muted);font-size:12px">點擊或拖曳圓圈至均勻色區</span>
+        <div class="workflow">
+          <span id="step1">1 比色板校正</span>
+          <span id="step2">2 臨床照</span>
+          <span id="step3">3 完成瓷牙</span>
+        </div>
+      </div>
+
+      <div class="photo-stack">
+        <article class="photo-panel calibration">
+          <div class="photo-head">
+            <div class="photo-title"><span class="badge">1</span><div>比色板校正照片<small>先選擇照片中的已知色階，再把取樣圈移到該色板中央</small></div></div>
+            <button class="upload" data-upload="calibration" type="button">匯入比色板照片</button>
+            <input class="hidden" id="calibrationInput" type="file" accept="image/*">
+          </div>
+          <div class="canvas-wrap" data-drop="calibration">
+            <canvas id="calibrationCanvas" aria-label="比色板校正照片取樣區"></canvas>
+            <div class="empty" id="calibrationEmpty"><span class="plus">＋</span><strong>先匯入比色板照片</strong><span>照片中需包含已知型號的色階片</span></div>
+          </div>
+        </article>
+
+        <article class="photo-panel target">
+          <div class="photo-head">
+            <div class="photo-title"><span class="badge">2</span><div>實際臨床照<small>使用與比色板相同光源、相機、曝光及白平衡</small></div></div>
+            <button class="upload" data-upload="target" type="button">匯入臨床照</button>
+            <input class="hidden" id="targetInput" type="file" accept="image/*">
+          </div>
+          <div class="canvas-wrap" data-drop="target">
+            <canvas id="targetCanvas" aria-label="實際臨床照取樣區"></canvas>
+            <div class="empty" id="targetEmpty"><span class="plus">＋</span><strong>匯入實際臨床照</strong><span>將取樣圈放在目標牙中央、避開高光與陰影</span></div>
+          </div>
+        </article>
+
+        <article class="photo-panel restoration">
+          <div class="photo-head">
+            <div class="photo-title"><span class="badge">3</span><div>完成瓷牙照片<small>使用與前兩張相同的拍攝條件</small></div></div>
+            <button class="upload" data-upload="restoration" type="button">匯入完成瓷牙照</button>
+            <input class="hidden" id="restorationInput" type="file" accept="image/*">
+          </div>
+          <div class="canvas-wrap" data-drop="restoration">
+            <canvas id="restorationCanvas" aria-label="完成瓷牙照片取樣區"></canvas>
+            <div class="empty" id="restorationEmpty"><span class="plus">＋</span><strong>匯入完成瓷牙照片</strong><span>取樣位置盡量對應臨床照的牙面區域</span></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <aside aria-label="校正與比色紀錄">
+      <div class="result-head">
+        <p class="eyebrow">OHARA DENTAL COLOR RECORD</p>
+        <h2>校正與比色紀錄</h2>
+        <p>先建立比色板校正量，再比較校正後的臨床牙與瓷牙數值。</p>
+      </div>
+      <div class="result-body">
+        <section class="card">
+          <h3 class="card-title">病例資料</h3>
+          <div class="form-grid">
+            <label class="field">病例編號<input id="caseId" placeholder="例如 OH-2026-001"></label>
+            <label class="field">牙位<input id="toothNo" placeholder="例如 #11"></label>
+            <label class="field full">備註<input id="caseNote" placeholder="例如：前牙全瓷冠試戴"></label>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3 class="card-title"><span>1. 比色板校正資訊</span><span id="calBadge" class="status-pill">尚未校正</span></h3>
+          <div class="form-grid">
+            <label class="field full">照片中的已知色階
+              <select id="referenceShade"></select>
+            </label>
+            <label class="field">參考 L*<input id="refL" type="number" step="0.1"></label>
+            <label class="field">參考 a*<input id="refA" type="number" step="0.1"></label>
+            <label class="field">參考 b*<input id="refB" type="number" step="0.1"></label>
+          </div>
+          <div class="cal-status">
+            <div class="status-line"><strong>影像測得值與校正量</strong><span id="calHint" style="color:var(--muted);font-size:11px">等待照片取樣</span></div>
+            <table class="mini-table">
+              <thead><tr><th></th><th>L*</th><th>a*</th><th>b*</th></tr></thead>
+              <tbody>
+                <tr><td>影像測得</td><td id="calRawL">--</td><td id="calRawA">--</td><td id="calRawB">--</td></tr>
+                <tr><td>已知參考</td><td id="calRefL">--</td><td id="calRefA">--</td><td id="calRefB">--</td></tr>
+                <tr><td>套用校正</td><td id="corrL">--</td><td id="corrA">--</td><td id="corrB">--</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3 class="card-title"><span>校正後整體色差</span><span>ΔE₀₀</span></h3>
+          <div class="delta"><output id="deltaE">--</output><small>實際臨床牙 vs 完成瓷牙</small><span class="match" id="matchStatus">等待完成三步驟</span></div>
+        </section>
+
+        <section class="card">
+          <h3 class="card-title">校正後取樣色預覽</h3>
+          <div class="swatches"><div class="swatch" id="targetSwatch">實際臨床牙</div><div class="swatch" id="restorationSwatch">完成瓷牙</div></div>
+        </section>
+
+        <section class="card">
+          <h3 class="card-title"><span>校正後 CIE Lab</span><span>D65 / 2°</span></h3>
+          <table class="data-table">
+            <thead><tr><th>數值</th><th style="color:var(--blue)">臨床牙</th><th style="color:#ff8984">完成瓷牙</th></tr></thead>
+            <tbody>
+              <tr><td>L* 明度</td><td id="targetL">--</td><td id="restorationL">--</td></tr>
+              <tr><td>a* 紅綠</td><td id="targetA">--</td><td id="restorationA">--</td></tr>
+              <tr><td>b* 黃藍</td><td id="targetB">--</td><td id="restorationB">--</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card">
+          <h3 class="card-title">差值（完成瓷牙 − 臨床牙）</h3>
+          <table class="data-table">
+            <tbody>
+              <tr><td>ΔL* 明度</td><td id="diffL">--</td><td id="diffLHint">—</td></tr>
+              <tr><td>Δa* 紅綠</td><td id="diffA">--</td><td id="diffAHint">—</td></tr>
+              <tr><td>Δb* 黃藍</td><td id="diffB">--</td><td id="diffBHint">—</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card">
+          <h3 class="card-title">臨床牙近似 VITA Classical 色階</h3>
+          <div class="shade"><div class="shade-chip" id="shadeChip">--</div><div><strong id="shadeName">等待完成校正與取樣</strong><br><span id="shadeDescription">近似色階僅供影像紀錄參考。</span></div></div>
+        </section>
+
+        <section class="card export-box">
+          <button class="button primary" id="downloadDocButton" type="button">下載 Google Docs 相容報告</button>
+          <button class="button" id="printButton" type="button">列印／另存 PDF</button>
+          <p>按下後會下載包含本次數值的 `.doc` 報告，並開啟 Google Docs。將檔案上傳至 Google Drive 即可轉為 Google 文件。</p>
+        </section>
+
+        <section class="card"><p class="note"><strong>臨床限制：</strong>目前採單一已知色階的 L/a/b 偏移校正，能降低同批照片的整體色偏，但不能完全修正相機色彩曲線。正式臨床決策仍應搭配標準化拍攝、多色塊校正與分光測色儀。</p></section>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const shadeGuide = [
+      {name:"A1",lab:[82,1,12]},{name:"A2",lab:[78,2,16]},{name:"A3",lab:[74,3.5,20]},
+      {name:"A3.5",lab:[70,4.5,23]},{name:"A4",lab:[66,5,25]},{name:"B1",lab:[86,0,9]},
+      {name:"B2",lab:[81,1,14]},{name:"B3",lab:[76,2,19]},{name:"B4",lab:[70,3,23]},
+      {name:"C1",lab:[78,0,11]},{name:"C2",lab:[73,.5,15]},{name:"C3",lab:[68,1,18]},
+      {name:"C4",lab:[63,1.5,21]},{name:"D2",lab:[77,2.5,13]},{name:"D3",lab:[72,3.5,17]},{name:"D4",lab:[68,3,19]}
+    ];
+    const colors = {calibration:"#a889ff",target:"#55aaff",restoration:"#ff6660"};
+    const states = Object.fromEntries(["calibration","target","restoration"].map(side => [side,createState(side)]));
+    let correction = null;
+    let lastResult = null;
+
+    function createState(side) {
+      return {
+        side, color:colors[side], image:null, sample:null, corrected:null, x:.5, y:.5, dragging:false, display:null,
+        canvas:document.getElementById(side+"Canvas"), input:document.getElementById(side+"Input"),
+        empty:document.getElementById(side+"Empty")
+      };
+    }
+
+    const shadeSelect = document.getElementById("referenceShade");
+    shadeGuide.forEach(shade => shadeSelect.add(new Option(shade.name,shade.name)));
+    shadeSelect.value = "A2";
+    setReference("A2");
+
+    document.querySelectorAll("[data-upload]").forEach(button => button.addEventListener("click",() => states[button.dataset.upload].input.click()));
+    Object.values(states).forEach(state => {
+      state.ctx = state.canvas.getContext("2d",{willReadFrequently:true});
+      state.input.addEventListener("change",event => {
+        const file = event.target.files[0];
+        if (file) loadFile(state,file);
+      });
+      const drop = document.querySelector('[data-drop="'+state.side+'"]');
+      drop.addEventListener("dragover",event => { event.preventDefault(); drop.style.outline="2px solid "+state.color; });
+      drop.addEventListener("dragleave",() => drop.style.outline="");
+      drop.addEventListener("drop",event => {
+        event.preventDefault(); drop.style.outline="";
+        const file = event.dataTransfer.files[0];
+        if (file && file.type.startsWith("image/")) loadFile(state,file);
+      });
+      state.canvas.addEventListener("pointerdown",event => {
+        if (!state.image) return;
+        state.dragging=true; state.canvas.setPointerCapture(event.pointerId); moveSample(state,event);
+      });
+      state.canvas.addEventListener("pointermove",event => { if (state.dragging) moveSample(state,event); });
+      state.canvas.addEventListener("pointerup",() => state.dragging=false);
+      state.canvas.addEventListener("pointercancel",() => state.dragging=false);
+    });
+
+    shadeSelect.addEventListener("change",() => { setReference(shadeSelect.value); updateResults(); });
+    ["refL","refA","refB"].forEach(id => document.getElementById(id).addEventListener("input",updateResults));
+    document.getElementById("radius").addEventListener("input",event => {
+      document.getElementById("radiusValue").textContent=event.target.value+" px"; redrawAll();
+    });
+    document.getElementById("excludeHighlights").addEventListener("change",redrawAll);
+    document.getElementById("resetButton").addEventListener("click",resetAll);
+    document.getElementById("printButton").addEventListener("click",() => window.print());
+    document.getElementById("downloadDocButton").addEventListener("click",exportGoogleDoc);
+    document.getElementById("docButton").addEventListener("click",exportGoogleDoc);
+    window.addEventListener("resize",redrawAll);
+
+    function setReference(name) {
+      const shade=shadeGuide.find(item => item.name===name);
+      document.getElementById("refL").value=shade.lab[0];
+      document.getElementById("refA").value=shade.lab[1];
+      document.getElementById("refB").value=shade.lab[2];
+    }
+    function referenceLab() {
+      return ["refL","refA","refB"].map(id => Number(document.getElementById(id).value));
+    }
+    function loadFile(state,file) {
+      const reader=new FileReader();
+      reader.onload=() => {
+        const image=new Image();
+        image.onload=() => {
+          state.image=image; state.x=.5; state.y=.5; state.empty.classList.add("hidden"); draw(state);
+        };
+        image.src=reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    function moveSample(state,event) {
+      const rect=state.canvas.getBoundingClientRect();
+      if (!state.display) return;
+      state.x=clamp((event.clientX-rect.left-state.display.x)/state.display.w,0,1);
+      state.y=clamp((event.clientY-rect.top-state.display.y)/state.display.h,0,1);
+      draw(state);
+    }
+    function redrawAll() { Object.values(states).forEach(draw); }
+    function draw(state) {
+      const rect=state.canvas.parentElement.getBoundingClientRect();
+      const dpr=Math.min(window.devicePixelRatio||1,2);
+      const width=Math.max(1,Math.round(rect.width)),height=Math.max(1,Math.round(rect.height));
+      state.canvas.width=Math.round(width*dpr); state.canvas.height=Math.round(height*dpr);
+      state.ctx.setTransform(dpr,0,0,dpr,0,0); state.ctx.clearRect(0,0,width,height);
+      if (!state.image) { updateResults(); return; }
+      const scale=Math.min(width/state.image.naturalWidth,height/state.image.naturalHeight);
+      const w=state.image.naturalWidth*scale,h=state.image.naturalHeight*scale,x=(width-w)/2,y=(height-h)/2;
+      state.display={x,y,w,h}; state.ctx.drawImage(state.image,x,y,w,h);
+      const cx=x+state.x*w,cy=y+state.y*h,radius=Number(document.getElementById("radius").value);
+      state.sample=sampleCircle(state,cx,cy,radius);
+      state.ctx.save(); state.ctx.beginPath(); state.ctx.arc(cx,cy,radius,0,Math.PI*2);
+      state.ctx.fillStyle=hexToRgba(state.color,.13); state.ctx.fill(); state.ctx.lineWidth=3; state.ctx.strokeStyle=state.color;
+      state.ctx.shadowColor="rgba(0,0,0,.7)"; state.ctx.shadowBlur=4; state.ctx.stroke();
+      state.ctx.beginPath(); state.ctx.moveTo(cx-6,cy);state.ctx.lineTo(cx+6,cy);state.ctx.moveTo(cx,cy-6);state.ctx.lineTo(cx,cy+6);
+      state.ctx.lineWidth=1.5;state.ctx.strokeStyle="#fff";state.ctx.stroke();state.ctx.restore(); updateResults();
+    }
+    function sampleCircle(state,cx,cy,radius) {
+      const dpr=Math.min(window.devicePixelRatio||1,2);
+      const left=Math.max(0,Math.floor((cx-radius)*dpr)),top=Math.max(0,Math.floor((cy-radius)*dpr));
+      const size=Math.max(1,Math.floor(radius*2*dpr)),maxW=Math.min(size,state.canvas.width-left),maxH=Math.min(size,state.canvas.height-top);
+      if (maxW<=0||maxH<=0) return null;
+      const pixels=state.ctx.getImageData(left,top,maxW,maxH).data,values=[],center=size/2;
+      for(let py=0;py<maxH;py+=2) for(let px=0;px<maxW;px+=2) {
+        const dx=px-center,dy=py-center;if(dx*dx+dy*dy>center*center)continue;
+        const i=(py*maxW+px)*4,r=pixels[i],g=pixels[i+1],b=pixels[i+2];
+        if(document.getElementById("excludeHighlights").checked&&Math.max(r,g,b)>242&&Math.min(r,g,b)>205)continue;
+        values.push([r,g,b]);
+      }
+      if(!values.length)return null;
+      values.sort((a,b)=>luminance(a)-luminance(b));
+      const trim=Math.floor(values.length*.08),kept=values.slice(trim,values.length-trim||values.length);
+      const rgb=kept.reduce((s,p)=>[s[0]+p[0],s[1]+p[1],s[2]+p[2]],[0,0,0]).map(v=>Math.round(v/kept.length));
+      return {rgb,lab:rgbToLab(rgb)};
+    }
+    function updateResults() {
+      const cal=states.calibration.sample,ref=referenceLab();
+      correction=cal&&ref.every(Number.isFinite)?ref.map((v,i)=>v-cal.lab[i]):null;
+      document.getElementById("calBadge").textContent=correction?"校正已啟用":"尚未校正";
+      document.getElementById("calBadge").classList.toggle("ready",!!correction);
+      document.getElementById("calHint").textContent=correction?"校正量已套用至後續照片":"等待照片取樣";
+      setTriplet("calRaw",cal?cal.lab:null);setTriplet("calRef",ref);
+      setTriplet("corr",correction,true);
+      document.getElementById("step1").classList.toggle("done",!!correction);
+
+      ["target","restoration"].forEach(side => {
+        const state=states[side];
+        state.corrected=state.sample&&correction?state.sample.lab.map((v,i)=>i===0?clamp(v+correction[i],0,100):v+correction[i]):null;
+        setTriplet(side,state.corrected);
+        const swatch=document.getElementById(side+"Swatch");
+        swatch.style.background=state.corrected?labToCss(state.corrected):"#625b52";
+      });
+      document.getElementById("step2").classList.toggle("done",!!states.target.corrected);
+      document.getElementById("step3").classList.toggle("done",!!states.restoration.corrected);
+
+      const target=states.target.corrected,restoration=states.restoration.corrected;
+      if(target) updateShade(target);
+      if(!target||!restoration) {
+        document.getElementById("deltaE").textContent="--";document.getElementById("matchStatus").textContent=correction?"等待臨床照與完成瓷牙照":"請先完成比色板校正";
+        ["diffL","diffA","diffB"].forEach(id=>document.getElementById(id).textContent="--");
+        ["diffLHint","diffAHint","diffBHint"].forEach(id=>document.getElementById(id).textContent="—");
+        lastResult=null;return;
+      }
+      const delta=deltaE2000(target,restoration),diffs=restoration.map((v,i)=>v-target[i]);
+      document.getElementById("deltaE").textContent=delta.toFixed(2);
+      document.getElementById("deltaE").style.color=delta<=1.8?"var(--green)":delta<=3.3?"var(--gold)":"var(--red)";
+      document.getElementById("matchStatus").textContent=delta<=1?"極接近":delta<=1.8?"臨床匹配佳":delta<=3.3?"可察覺差異":"建議調整";
+      setDiff("L",diffs[0],diffs[0]>0?"瓷牙較亮":"瓷牙較暗");
+      setDiff("A",diffs[1],diffs[1]>0?"瓷牙較紅":"瓷牙較綠");
+      setDiff("B",diffs[2],diffs[2]>0?"瓷牙較黃":"瓷牙較藍");
+      lastResult={delta,target,restoration,diffs,ref,correction,shade:nearestShade(target)};
+    }
+    function setTriplet(prefix,values,signed=false) {
+      ["L","A","B"].forEach((axis,i)=>{
+        const el=document.getElementById(prefix+axis);if(!el)return;
+        el.textContent=values&&Number.isFinite(values[i])?((signed&&values[i]>=0?"+":"")+values[i].toFixed(2)):"--";
+      });
+    }
+    function setDiff(axis,value,hint) {
+      document.getElementById("diff"+axis).textContent=(value>=0?"+":"")+value.toFixed(2);
+      document.getElementById("diff"+axis+"Hint").textContent=Math.abs(value)<.25?"接近":hint;
+    }
+    function nearestShade(lab) {
+      return shadeGuide.map(shade=>({...shade,distance:deltaE2000(lab,shade.lab)})).sort((a,b)=>a.distance-b.distance)[0];
+    }
+    function updateShade(lab) {
+      const best=nearestShade(lab);
+      document.getElementById("shadeChip").textContent=best.name;
+      document.getElementById("shadeName").textContent="近似 "+best.name;
+      document.getElementById("shadeDescription").textContent="與參考點的 ΔE₀₀ 約 "+best.distance.toFixed(1)+"，僅供影像紀錄參考。";
+    }
+    function exportGoogleDoc() {
+      if(!lastResult){ alert("請先完成比色板、臨床照與完成瓷牙照的取樣。");return; }
+      const val=id=>escapeHtml(document.getElementById(id).value||"未填");
+      const f=n=>(n>=0?"+":"")+n.toFixed(2);
+      const now=new Date().toLocaleString("zh-TW");
+      const html=`<!doctype html><html><head><meta charset="utf-8"><title>大原牙醫瓷牙比色報告</title>
+      <style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#222;line-height:1.55;margin:36px}h1{color:#795b20;border-bottom:3px solid #d8aa4a;padding-bottom:10px}h2{margin-top:26px;color:#444}table{width:100%;border-collapse:collapse;margin:10px 0 22px}th,td{border:1px solid #bbb;padding:9px;text-align:center}th{background:#f3ead8}.note{padding:12px;background:#fff7e6;border-left:4px solid #d8aa4a}</style></head><body>
+      <h1>大原牙醫瓷牙比色報告</h1><p>建立時間：${now}</p>
+      <h2>病例資料</h2><table><tr><th>病例編號</th><th>牙位</th><th>備註</th></tr><tr><td>${val("caseId")}</td><td>${val("toothNo")}</td><td>${val("caseNote")}</td></tr></table>
+      <h2>比色板校正</h2><p>已知色階：${escapeHtml(shadeSelect.value)}</p><table><tr><th></th><th>L*</th><th>a*</th><th>b*</th></tr>
+      <tr><td>參考值</td>${lastResult.ref.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
+      <tr><td>校正量</td>${lastResult.correction.map(v=>`<td>${f(v)}</td>`).join("")}</tr></table>
+      <h2>校正後比色結果</h2><p><strong>CIEDE2000 ΔE₀₀：${lastResult.delta.toFixed(2)}</strong>；臨床牙近似色階：${lastResult.shade.name}</p>
+      <table><tr><th></th><th>臨床牙</th><th>完成瓷牙</th><th>差值</th></tr>
+      ${["L* 明度","a* 紅綠","b* 黃藍"].map((label,i)=>`<tr><td>${label}</td><td>${lastResult.target[i].toFixed(2)}</td><td>${lastResult.restoration[i].toFixed(2)}</td><td>${f(lastResult.diffs[i])}</td></tr>`).join("")}</table>
+      <p class="note">本報告採照片單點色階校正，供病例紀錄與溝通使用，不取代標準化多色塊校正、實體比色板或分光測色儀。</p></body></html>`;
+      const blob=new Blob([html],{type:"application/msword"});
+      const link=document.createElement("a");link.href=URL.createObjectURL(blob);
+      link.download="大原牙醫瓷牙比色報告_"+(document.getElementById("caseId").value||new Date().toISOString().slice(0,10))+".doc";
+      link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+      setTimeout(()=>window.open("https://docs.new","_blank","noopener"),350);
+    }
+    function resetAll() {
+      Object.values(states).forEach(state=>{state.image=null;state.sample=null;state.corrected=null;state.display=null;state.input.value="";state.empty.classList.remove("hidden");state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);});
+      correction=null;lastResult=null;["caseId","toothNo","caseNote"].forEach(id=>document.getElementById(id).value="");
+      shadeSelect.value="A2";setReference("A2");
+      document.getElementById("shadeChip").textContent="--";document.getElementById("shadeName").textContent="等待完成校正與取樣";
+      document.getElementById("shadeDescription").textContent="近似色階僅供影像紀錄參考。";updateResults();
+    }
+    function rgbToLab(rgb) {
+      let [r,g,b]=rgb.map(v=>v/255).map(v=>v>.04045?Math.pow((v+.055)/1.055,2.4):v/12.92);
+      const x=(r*.4124564+g*.3575761+b*.1804375)/.95047,y=r*.2126729+g*.7151522+b*.072175,z=(r*.0193339+g*.119192+b*.9503041)/1.08883;
+      const t=v=>v>.008856?Math.cbrt(v):7.787*v+16/116,fx=t(x),fy=t(y),fz=t(z);
+      return [116*fy-16,500*(fx-fy),200*(fy-fz)];
+    }
+    function labToCss(lab) {
+      let [L,a,b]=lab,y=(L+16)/116,x=a/500+y,z=y-b/200;
+      const inv=v=>Math.pow(v,3)>.008856?Math.pow(v,3):(v-16/116)/7.787;
+      x=.95047*inv(x);y=inv(y);z=1.08883*inv(z);
+      let r=x*3.2404542+y*-.5371385+z*-.4985314,g=x*-.969266+y*1.8760108+z*.041556,bv=x*.0556434+y*-.2040259+z*1.0572252;
+      const gamma=v=>255*(v>.0031308?1.055*Math.pow(v,1/2.4)-.055:12.92*v);
+      return `rgb(${[r,g,bv].map(v=>Math.round(clamp(gamma(v),0,255))).join(",")})`;
+    }
+    function deltaE2000(l1,l2) {
+      const [L1,a1,b1]=l1,[L2,a2,b2]=l2,C1=Math.hypot(a1,b1),C2=Math.hypot(a2,b2),cb=(C1+C2)/2;
+      const G=.5*(1-Math.sqrt(Math.pow(cb,7)/(Math.pow(cb,7)+Math.pow(25,7)))),a1p=(1+G)*a1,a2p=(1+G)*a2,C1p=Math.hypot(a1p,b1),C2p=Math.hypot(a2p,b2);
+      const hp=(a,b)=>{if(!a&&!b)return 0;const h=Math.atan2(b,a)*180/Math.PI;return h>=0?h:h+360},h1=hp(a1p,b1),h2=hp(a2p,b2);
+      const dL=L2-L1,dC=C2p-C1p;let dh;if(C1p*C2p===0)dh=0;else if(Math.abs(h2-h1)<=180)dh=h2-h1;else dh=h2<=h1?h2-h1+360:h2-h1-360;
+      const dH=2*Math.sqrt(C1p*C2p)*Math.sin(dh/2*Math.PI/180),Lb=(L1+L2)/2,Cb=(C1p+C2p)/2;let hb;
+      if(C1p*C2p===0)hb=h1+h2;else if(Math.abs(h1-h2)<=180)hb=(h1+h2)/2;else hb=h1+h2<360?(h1+h2+360)/2:(h1+h2-360)/2;
+      const T=1-.17*Math.cos((hb-30)*Math.PI/180)+.24*Math.cos(2*hb*Math.PI/180)+.32*Math.cos((3*hb+6)*Math.PI/180)-.20*Math.cos((4*hb-63)*Math.PI/180);
+      const dt=30*Math.exp(-Math.pow((hb-275)/25,2)),Rc=2*Math.sqrt(Math.pow(Cb,7)/(Math.pow(Cb,7)+Math.pow(25,7)));
+      const Sl=1+.015*Math.pow(Lb-50,2)/Math.sqrt(20+Math.pow(Lb-50,2)),Sc=1+.045*Cb,Sh=1+.015*Cb*T,Rt=-Math.sin(2*dt*Math.PI/180)*Rc;
+      return Math.sqrt(Math.pow(dL/Sl,2)+Math.pow(dC/Sc,2)+Math.pow(dH/Sh,2)+Rt*(dC/Sc)*(dH/Sh));
+    }
+    function luminance(rgb){return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2]}
+    function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+    function hexToRgba(hex,a){const v=parseInt(hex.slice(1),16);return `rgba(${v>>16&255},${v>>8&255},${v&255},${a})`}
+    function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+    redrawAll();
+  </script>
+</body>
+</html>
