@@ -140,9 +140,25 @@
       font-size: 13px;
       font-weight: 900;
     }
-    .calibration .badge { background: #7558ca; }
     .target .badge { background: #267fd5; }
     .restoration .badge { background: #d84942; }
+    .sample-tools {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-left: auto;
+    }
+    .sample-mode {
+      min-height: 34px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #292d31;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .sample-mode[data-point="tooth"].active { border-color: var(--blue); color: var(--blue); background: rgba(85,170,255,.12); }
+    .sample-mode[data-point="shade"].active { border-color: var(--violet); color: var(--violet); background: rgba(168,137,255,.12); }
     .upload {
       min-height: 35px;
       padding: 7px 11px;
@@ -298,7 +314,7 @@
       <div class="logo">齒</div>
       <div>
         <h1>大原牙醫瓷牙比色工具</h1>
-        <p>比色板校正 · 臨床牙 · 完成瓷牙 · CIEDE2000</p>
+        <p>臨床牙＋比色板 · 完成瓷牙＋比色板 · 獨立校正 · CIEDE2000</p>
       </div>
     </div>
     <div class="actions">
@@ -309,52 +325,47 @@
   </header>
 
   <main>
-    <section class="workspace" aria-label="三階段比色照片">
+    <section class="workspace" aria-label="兩張比色照片">
       <div class="toolbar">
         <label>取樣半徑 <input id="radius" type="range" min="6" max="60" value="24"><span id="radiusValue">24 px</span></label>
         <label><input id="excludeHighlights" type="checkbox" checked> 排除高光</label>
         <span style="color:var(--muted);font-size:12px">點擊或拖曳圓圈至均勻色區</span>
         <div class="workflow">
-          <span id="step1">1 比色板校正</span>
-          <span id="step2">2 臨床照</span>
-          <span id="step3">3 完成瓷牙</span>
+          <span id="step1">1 臨床牙＋比色板</span>
+          <span id="step2">2 完成瓷牙＋比色板</span>
         </div>
       </div>
 
       <div class="photo-stack">
-        <article class="photo-panel calibration">
-          <div class="photo-head">
-            <div class="photo-title"><span class="badge">1</span><div>比色板校正照片<small>先選擇照片中的已知色階，再把取樣圈移到該色板中央</small></div></div>
-            <button class="upload" data-upload="calibration" type="button">匯入比色板照片</button>
-            <input class="hidden" id="calibrationInput" type="file" accept="image/*">
-          </div>
-          <div class="canvas-wrap" data-drop="calibration">
-            <canvas id="calibrationCanvas" aria-label="比色板校正照片取樣區"></canvas>
-            <div class="empty" id="calibrationEmpty"><span class="plus">＋</span><strong>先匯入比色板照片</strong><span>照片中需包含已知型號的色階片</span></div>
-          </div>
-        </article>
-
         <article class="photo-panel target">
           <div class="photo-head">
-            <div class="photo-title"><span class="badge">2</span><div>實際臨床照<small>使用與比色板相同光源、相機、曝光及白平衡</small></div></div>
-            <button class="upload" data-upload="target" type="button">匯入臨床照</button>
+            <div class="photo-title"><span class="badge">1</span><div>實際臨床牙＋比色板<small>照片中必須同時包含目標牙與已知色階片</small></div></div>
+            <div class="sample-tools">
+              <button class="sample-mode active" data-side="target" data-point="tooth" type="button">藍圈：牙齒</button>
+              <button class="sample-mode" data-side="target" data-point="shade" type="button">紫圈：比色板</button>
+              <button class="upload" data-upload="target" type="button">匯入臨床照</button>
+            </div>
             <input class="hidden" id="targetInput" type="file" accept="image/*">
           </div>
           <div class="canvas-wrap" data-drop="target">
             <canvas id="targetCanvas" aria-label="實際臨床照取樣區"></canvas>
-            <div class="empty" id="targetEmpty"><span class="plus">＋</span><strong>匯入實際臨床照</strong><span>將取樣圈放在目標牙中央、避開高光與陰影</span></div>
+            <div class="empty" id="targetEmpty"><span class="plus">＋</span><strong>匯入臨床牙＋比色板照片</strong><span>藍圈取樣牙齒，紫圈取樣照片內的已知色階</span></div>
           </div>
         </article>
 
         <article class="photo-panel restoration">
           <div class="photo-head">
-            <div class="photo-title"><span class="badge">3</span><div>完成瓷牙照片<small>使用與前兩張相同的拍攝條件</small></div></div>
-            <button class="upload" data-upload="restoration" type="button">匯入完成瓷牙照</button>
+            <div class="photo-title"><span class="badge">2</span><div>完成瓷牙＋比色板<small>放入同一色階片，並盡量維持相同拍攝條件</small></div></div>
+            <div class="sample-tools">
+              <button class="sample-mode active" data-side="restoration" data-point="tooth" type="button">藍圈：瓷牙</button>
+              <button class="sample-mode" data-side="restoration" data-point="shade" type="button">紫圈：比色板</button>
+              <button class="upload" data-upload="restoration" type="button">匯入瓷牙照</button>
+            </div>
             <input class="hidden" id="restorationInput" type="file" accept="image/*">
           </div>
           <div class="canvas-wrap" data-drop="restoration">
             <canvas id="restorationCanvas" aria-label="完成瓷牙照片取樣區"></canvas>
-            <div class="empty" id="restorationEmpty"><span class="plus">＋</span><strong>匯入完成瓷牙照片</strong><span>取樣位置盡量對應臨床照的牙面區域</span></div>
+            <div class="empty" id="restorationEmpty"><span class="plus">＋</span><strong>匯入完成瓷牙＋比色板照片</strong><span>兩張照片都會利用各自的比色板獨立校正</span></div>
           </div>
         </article>
       </div>
@@ -364,7 +375,7 @@
       <div class="result-head">
         <p class="eyebrow">OHARA DENTAL COLOR RECORD</p>
         <h2>校正與比色紀錄</h2>
-        <p>先建立比色板校正量，再比較校正後的臨床牙與瓷牙數值。</p>
+        <p>每張照片分別以照片內的比色板校正，再比較兩者的牙齒數值。</p>
       </div>
       <div class="result-body">
         <section class="card">
@@ -377,7 +388,7 @@
         </section>
 
         <section class="card">
-          <h3 class="card-title"><span>1. 比色板校正資訊</span><span id="calBadge" class="status-pill">尚未校正</span></h3>
+          <h3 class="card-title"><span>照片內比色板資訊</span><span id="calBadge" class="status-pill">等待兩張照片</span></h3>
           <div class="form-grid">
             <label class="field full">照片中的已知色階
               <select id="referenceShade"></select>
@@ -387,13 +398,13 @@
             <label class="field">參考 b*<input id="refB" type="number" step="0.1"></label>
           </div>
           <div class="cal-status">
-            <div class="status-line"><strong>影像測得值與校正量</strong><span id="calHint" style="color:var(--muted);font-size:11px">等待照片取樣</span></div>
+            <div class="status-line"><strong>兩張照片的獨立校正量</strong><span id="calHint" style="color:var(--muted);font-size:11px">等待比色板取樣</span></div>
             <table class="mini-table">
               <thead><tr><th></th><th>L*</th><th>a*</th><th>b*</th></tr></thead>
               <tbody>
-                <tr><td>影像測得</td><td id="calRawL">--</td><td id="calRawA">--</td><td id="calRawB">--</td></tr>
                 <tr><td>已知參考</td><td id="calRefL">--</td><td id="calRefA">--</td><td id="calRefB">--</td></tr>
-                <tr><td>套用校正</td><td id="corrL">--</td><td id="corrA">--</td><td id="corrB">--</td></tr>
+                <tr><td>臨床照校正</td><td id="targetCorrL">--</td><td id="targetCorrA">--</td><td id="targetCorrB">--</td></tr>
+                <tr><td>瓷牙照校正</td><td id="restorationCorrL">--</td><td id="restorationCorrA">--</td><td id="restorationCorrB">--</td></tr>
               </tbody>
             </table>
           </div>
@@ -401,7 +412,7 @@
 
         <section class="card">
           <h3 class="card-title"><span>校正後整體色差</span><span>ΔE₀₀</span></h3>
-          <div class="delta"><output id="deltaE">--</output><small>實際臨床牙 vs 完成瓷牙</small><span class="match" id="matchStatus">等待完成三步驟</span></div>
+          <div class="delta"><output id="deltaE">--</output><small>獨立校正後：實際臨床牙 vs 完成瓷牙</small><span class="match" id="matchStatus">等待兩張照片完成取樣</span></div>
         </section>
 
         <section class="card">
@@ -443,7 +454,7 @@
           <p>按下後會下載包含本次數值的 `.doc` 報告，並開啟 Google Docs。將檔案上傳至 Google Drive 即可轉為 Google 文件。</p>
         </section>
 
-        <section class="card"><p class="note"><strong>臨床限制：</strong>目前採單一已知色階的 L/a/b 偏移校正，能降低同批照片的整體色偏，但不能完全修正相機色彩曲線。正式臨床決策仍應搭配標準化拍攝、多色塊校正與分光測色儀。</p></section>
+        <section class="card"><p class="note"><strong>操作重點：</strong>兩張照片都必須放入同一片已知色階，且色階與牙齒盡量位於相同焦平面。藍圈取樣牙齒，紫圈取樣比色板。單色階校正仍不能完全取代多色塊校正或分光測色儀。</p></section>
       </div>
     </aside>
   </main>
@@ -456,14 +467,16 @@
       {name:"C1",lab:[78,0,11]},{name:"C2",lab:[73,.5,15]},{name:"C3",lab:[68,1,18]},
       {name:"C4",lab:[63,1.5,21]},{name:"D2",lab:[77,2.5,13]},{name:"D3",lab:[72,3.5,17]},{name:"D4",lab:[68,3,19]}
     ];
-    const colors = {calibration:"#a889ff",target:"#55aaff",restoration:"#ff6660"};
-    const states = Object.fromEntries(["calibration","target","restoration"].map(side => [side,createState(side)]));
-    let correction = null;
+    const states = Object.fromEntries(["target","restoration"].map(side => [side,createState(side)]));
     let lastResult = null;
 
     function createState(side) {
       return {
-        side, color:colors[side], image:null, sample:null, corrected:null, x:.5, y:.5, dragging:false, display:null,
+        side, image:null, corrected:null, active:"tooth", dragging:false, display:null,
+        points:{
+          tooth:{x:.42,y:.5,color:"#55aaff",sample:null},
+          shade:{x:.72,y:.5,color:"#a889ff",sample:null}
+        },
         canvas:document.getElementById(side+"Canvas"), input:document.getElementById(side+"Input"),
         empty:document.getElementById(side+"Empty")
       };
@@ -475,6 +488,12 @@
     setReference("A2");
 
     document.querySelectorAll("[data-upload]").forEach(button => button.addEventListener("click",() => states[button.dataset.upload].input.click()));
+    document.querySelectorAll(".sample-mode").forEach(button => button.addEventListener("click",() => {
+      const state=states[button.dataset.side];
+      state.active=button.dataset.point;
+      document.querySelectorAll('.sample-mode[data-side="'+state.side+'"]').forEach(item=>item.classList.toggle("active",item===button));
+      draw(state);
+    }));
     Object.values(states).forEach(state => {
       state.ctx = state.canvas.getContext("2d",{willReadFrequently:true});
       state.input.addEventListener("change",event => {
@@ -482,7 +501,7 @@
         if (file) loadFile(state,file);
       });
       const drop = document.querySelector('[data-drop="'+state.side+'"]');
-      drop.addEventListener("dragover",event => { event.preventDefault(); drop.style.outline="2px solid "+state.color; });
+      drop.addEventListener("dragover",event => { event.preventDefault(); drop.style.outline="2px solid var(--gold)"; });
       drop.addEventListener("dragleave",() => drop.style.outline="");
       drop.addEventListener("drop",event => {
         event.preventDefault(); drop.style.outline="";
@@ -524,7 +543,10 @@
       reader.onload=() => {
         const image=new Image();
         image.onload=() => {
-          state.image=image; state.x=.5; state.y=.5; state.empty.classList.add("hidden"); draw(state);
+          state.image=image;
+          state.points.tooth.x=.42;state.points.tooth.y=.5;
+          state.points.shade.x=.72;state.points.shade.y=.5;
+          state.empty.classList.add("hidden");draw(state);
         };
         image.src=reader.result;
       };
@@ -533,8 +555,9 @@
     function moveSample(state,event) {
       const rect=state.canvas.getBoundingClientRect();
       if (!state.display) return;
-      state.x=clamp((event.clientX-rect.left-state.display.x)/state.display.w,0,1);
-      state.y=clamp((event.clientY-rect.top-state.display.y)/state.display.h,0,1);
+      const point=state.points[state.active];
+      point.x=clamp((event.clientX-rect.left-state.display.x)/state.display.w,0,1);
+      point.y=clamp((event.clientY-rect.top-state.display.y)/state.display.h,0,1);
       draw(state);
     }
     function redrawAll() { Object.values(states).forEach(draw); }
@@ -548,13 +571,25 @@
       const scale=Math.min(width/state.image.naturalWidth,height/state.image.naturalHeight);
       const w=state.image.naturalWidth*scale,h=state.image.naturalHeight*scale,x=(width-w)/2,y=(height-h)/2;
       state.display={x,y,w,h}; state.ctx.drawImage(state.image,x,y,w,h);
-      const cx=x+state.x*w,cy=y+state.y*h,radius=Number(document.getElementById("radius").value);
-      state.sample=sampleCircle(state,cx,cy,radius);
-      state.ctx.save(); state.ctx.beginPath(); state.ctx.arc(cx,cy,radius,0,Math.PI*2);
-      state.ctx.fillStyle=hexToRgba(state.color,.13); state.ctx.fill(); state.ctx.lineWidth=3; state.ctx.strokeStyle=state.color;
-      state.ctx.shadowColor="rgba(0,0,0,.7)"; state.ctx.shadowBlur=4; state.ctx.stroke();
-      state.ctx.beginPath(); state.ctx.moveTo(cx-6,cy);state.ctx.lineTo(cx+6,cy);state.ctx.moveTo(cx,cy-6);state.ctx.lineTo(cx,cy+6);
-      state.ctx.lineWidth=1.5;state.ctx.strokeStyle="#fff";state.ctx.stroke();state.ctx.restore(); updateResults();
+      const radius=Number(document.getElementById("radius").value);
+      ["tooth","shade"].forEach(kind => {
+        const point=state.points[kind],cx=x+point.x*w,cy=y+point.y*h;
+        point.sample=sampleCircle(state,cx,cy,radius);
+        drawMarker(state,cx,cy,radius,point,kind);
+      });
+      updateResults();
+    }
+    function drawMarker(state,cx,cy,radius,point,kind) {
+      const active=state.active===kind;
+      state.ctx.save();state.ctx.beginPath();state.ctx.arc(cx,cy,radius,0,Math.PI*2);
+      state.ctx.fillStyle=hexToRgba(point.color,active ? .18 : .11);state.ctx.fill();
+      state.ctx.lineWidth=active?4:2.5;state.ctx.strokeStyle=point.color;
+      state.ctx.shadowColor="rgba(0,0,0,.75)";state.ctx.shadowBlur=5;state.ctx.stroke();
+      state.ctx.beginPath();state.ctx.moveTo(cx-6,cy);state.ctx.lineTo(cx+6,cy);state.ctx.moveTo(cx,cy-6);state.ctx.lineTo(cx,cy+6);
+      state.ctx.lineWidth=1.5;state.ctx.strokeStyle="#fff";state.ctx.stroke();
+      state.ctx.font="800 12px sans-serif";state.ctx.textAlign="center";
+      state.ctx.fillStyle=point.color;state.ctx.fillText(kind==="tooth"?"牙齒":"比色板",cx,cy-radius-8);
+      state.ctx.restore();
     }
     function sampleCircle(state,cx,cy,radius) {
       const dpr=Math.min(window.devicePixelRatio||1,2);
@@ -575,29 +610,29 @@
       return {rgb,lab:rgbToLab(rgb)};
     }
     function updateResults() {
-      const cal=states.calibration.sample,ref=referenceLab();
-      correction=cal&&ref.every(Number.isFinite)?ref.map((v,i)=>v-cal.lab[i]):null;
-      document.getElementById("calBadge").textContent=correction?"校正已啟用":"尚未校正";
-      document.getElementById("calBadge").classList.toggle("ready",!!correction);
-      document.getElementById("calHint").textContent=correction?"校正量已套用至後續照片":"等待照片取樣";
-      setTriplet("calRaw",cal?cal.lab:null);setTriplet("calRef",ref);
-      setTriplet("corr",correction,true);
-      document.getElementById("step1").classList.toggle("done",!!correction);
-
+      const ref=referenceLab();
+      setTriplet("calRef",ref);
       ["target","restoration"].forEach(side => {
         const state=states[side];
-        state.corrected=state.sample&&correction?state.sample.lab.map((v,i)=>i===0?clamp(v+correction[i],0,100):v+correction[i]):null;
+        const tooth=state.points.tooth.sample,shade=state.points.shade.sample;
+        state.correction=shade&&ref.every(Number.isFinite)?ref.map((v,i)=>v-shade.lab[i]):null;
+        state.corrected=tooth&&state.correction?tooth.lab.map((v,i)=>i===0?clamp(v+state.correction[i],0,100):v+state.correction[i]):null;
+        setTriplet(side+"Corr",state.correction,true);
         setTriplet(side,state.corrected);
         const swatch=document.getElementById(side+"Swatch");
         swatch.style.background=state.corrected?labToCss(state.corrected):"#625b52";
       });
-      document.getElementById("step2").classList.toggle("done",!!states.target.corrected);
-      document.getElementById("step3").classList.toggle("done",!!states.restoration.corrected);
+      const readyCount=["target","restoration"].filter(side=>!!states[side].corrected).length;
+      document.getElementById("calBadge").textContent=readyCount===2?"兩張均已校正":readyCount===1?"已校正一張":"等待兩張照片";
+      document.getElementById("calBadge").classList.toggle("ready",readyCount===2);
+      document.getElementById("calHint").textContent=readyCount===2?"每張照片已套用各自校正量":"每張照片都需完成牙齒與比色板取樣";
+      document.getElementById("step1").classList.toggle("done",!!states.target.corrected);
+      document.getElementById("step2").classList.toggle("done",!!states.restoration.corrected);
 
       const target=states.target.corrected,restoration=states.restoration.corrected;
       if(target) updateShade(target);
       if(!target||!restoration) {
-        document.getElementById("deltaE").textContent="--";document.getElementById("matchStatus").textContent=correction?"等待臨床照與完成瓷牙照":"請先完成比色板校正";
+        document.getElementById("deltaE").textContent="--";document.getElementById("matchStatus").textContent="請完成兩張照片的牙齒與比色板取樣";
         ["diffL","diffA","diffB"].forEach(id=>document.getElementById(id).textContent="--");
         ["diffLHint","diffAHint","diffBHint"].forEach(id=>document.getElementById(id).textContent="—");
         lastResult=null;return;
@@ -609,7 +644,11 @@
       setDiff("L",diffs[0],diffs[0]>0?"瓷牙較亮":"瓷牙較暗");
       setDiff("A",diffs[1],diffs[1]>0?"瓷牙較紅":"瓷牙較綠");
       setDiff("B",diffs[2],diffs[2]>0?"瓷牙較黃":"瓷牙較藍");
-      lastResult={delta,target,restoration,diffs,ref,correction,shade:nearestShade(target)};
+      lastResult={
+        delta,target,restoration,diffs,ref,shade:nearestShade(target),
+        targetCorrection:states.target.correction,
+        restorationCorrection:states.restoration.correction
+      };
     }
     function setTriplet(prefix,values,signed=false) {
       ["L","A","B"].forEach((axis,i)=>{
@@ -631,7 +670,7 @@
       document.getElementById("shadeDescription").textContent="與參考點的 ΔE₀₀ 約 "+best.distance.toFixed(1)+"，僅供影像紀錄參考。";
     }
     function exportGoogleDoc() {
-      if(!lastResult){ alert("請先完成比色板、臨床照與完成瓷牙照的取樣。");return; }
+      if(!lastResult){ alert("請先完成兩張照片的牙齒與比色板取樣。");return; }
       const val=id=>escapeHtml(document.getElementById(id).value||"未填");
       const f=n=>(n>=0?"+":"")+n.toFixed(2);
       const now=new Date().toLocaleString("zh-TW");
@@ -639,13 +678,14 @@
       <style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#222;line-height:1.55;margin:36px}h1{color:#795b20;border-bottom:3px solid #d8aa4a;padding-bottom:10px}h2{margin-top:26px;color:#444}table{width:100%;border-collapse:collapse;margin:10px 0 22px}th,td{border:1px solid #bbb;padding:9px;text-align:center}th{background:#f3ead8}.note{padding:12px;background:#fff7e6;border-left:4px solid #d8aa4a}</style></head><body>
       <h1>大原牙醫瓷牙比色報告</h1><p>建立時間：${now}</p>
       <h2>病例資料</h2><table><tr><th>病例編號</th><th>牙位</th><th>備註</th></tr><tr><td>${val("caseId")}</td><td>${val("toothNo")}</td><td>${val("caseNote")}</td></tr></table>
-      <h2>比色板校正</h2><p>已知色階：${escapeHtml(shadeSelect.value)}</p><table><tr><th></th><th>L*</th><th>a*</th><th>b*</th></tr>
+      <h2>兩張照片獨立校正</h2><p>照片內已知色階：${escapeHtml(shadeSelect.value)}</p><table><tr><th></th><th>L*</th><th>a*</th><th>b*</th></tr>
       <tr><td>參考值</td>${lastResult.ref.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
-      <tr><td>校正量</td>${lastResult.correction.map(v=>`<td>${f(v)}</td>`).join("")}</tr></table>
+      <tr><td>臨床照校正量</td>${lastResult.targetCorrection.map(v=>`<td>${f(v)}</td>`).join("")}</tr>
+      <tr><td>瓷牙照校正量</td>${lastResult.restorationCorrection.map(v=>`<td>${f(v)}</td>`).join("")}</tr></table>
       <h2>校正後比色結果</h2><p><strong>CIEDE2000 ΔE₀₀：${lastResult.delta.toFixed(2)}</strong>；臨床牙近似色階：${lastResult.shade.name}</p>
       <table><tr><th></th><th>臨床牙</th><th>完成瓷牙</th><th>差值</th></tr>
       ${["L* 明度","a* 紅綠","b* 黃藍"].map((label,i)=>`<tr><td>${label}</td><td>${lastResult.target[i].toFixed(2)}</td><td>${lastResult.restoration[i].toFixed(2)}</td><td>${f(lastResult.diffs[i])}</td></tr>`).join("")}</table>
-      <p class="note">本報告採照片單點色階校正，供病例紀錄與溝通使用，不取代標準化多色塊校正、實體比色板或分光測色儀。</p></body></html>`;
+      <p class="note">兩張照片均使用照片內的同一已知色階獨立校正。結果供病例紀錄與溝通使用，不取代標準化多色塊校正或分光測色儀。</p></body></html>`;
       const blob=new Blob([html],{type:"application/msword"});
       const link=document.createElement("a");link.href=URL.createObjectURL(blob);
       link.download="大原牙醫瓷牙比色報告_"+(document.getElementById("caseId").value||new Date().toISOString().slice(0,10))+".doc";
@@ -653,8 +693,14 @@
       setTimeout(()=>window.open("https://docs.new","_blank","noopener"),350);
     }
     function resetAll() {
-      Object.values(states).forEach(state=>{state.image=null;state.sample=null;state.corrected=null;state.display=null;state.input.value="";state.empty.classList.remove("hidden");state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);});
-      correction=null;lastResult=null;["caseId","toothNo","caseNote"].forEach(id=>document.getElementById(id).value="");
+      Object.values(states).forEach(state=>{
+        state.image=null;state.corrected=null;state.correction=null;state.display=null;state.active="tooth";state.input.value="";
+        state.points.tooth={x:.42,y:.5,color:"#55aaff",sample:null};
+        state.points.shade={x:.72,y:.5,color:"#a889ff",sample:null};
+        state.empty.classList.remove("hidden");state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);
+        document.querySelectorAll('.sample-mode[data-side="'+state.side+'"]').forEach(item=>item.classList.toggle("active",item.dataset.point==="tooth"));
+      });
+      lastResult=null;["caseId","toothNo","caseNote"].forEach(id=>document.getElementById(id).value="");
       shadeSelect.value="A2";setReference("A2");
       document.getElementById("shadeChip").textContent="--";document.getElementById("shadeName").textContent="等待完成校正與取樣";
       document.getElementById("shadeDescription").textContent="近似色階僅供影像紀錄參考。";updateResults();
