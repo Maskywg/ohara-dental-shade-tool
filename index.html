@@ -624,18 +624,18 @@
             <label class="field full">照片中的已知色階
               <select id="referenceShade"></select>
             </label>
-            <label class="field">參考 L*<input id="refL" type="number" step="0.1"></label>
-            <label class="field">參考 a*<input id="refA" type="number" step="0.1"></label>
-            <label class="field">參考 b*<input id="refB" type="number" step="0.1"></label>
           </div>
           <div class="cal-status">
-            <div class="status-line"><strong>選用設備的基礎校正量</strong><span id="calHint" style="color:var(--muted);font-size:11px">等待設備基準與照片</span></div>
+            <div class="status-line"><strong>基礎比色片與照片比色片的拍攝誤差</strong><span id="calHint" style="color:var(--muted);font-size:11px">等待設備基準與照片</span></div>
             <table class="mini-table">
               <thead><tr><th></th><th>L*</th><th>a*</th><th>b*</th></tr></thead>
               <tbody>
-                <tr><td>已知參考</td><td id="calRefL">--</td><td id="calRefA">--</td><td id="calRefB">--</td></tr>
-                <tr><td>臨床照校正</td><td id="targetCorrL">--</td><td id="targetCorrA">--</td><td id="targetCorrB">--</td></tr>
-                <tr><td>瓷牙照校正</td><td id="restorationCorrL">--</td><td id="restorationCorrA">--</td><td id="restorationCorrB">--</td></tr>
+                <tr><td>診所基礎值</td><td id="targetBaseL">--</td><td id="targetBaseA">--</td><td id="targetBaseB">--</td></tr>
+                <tr><td>臨床照比色片</td><td id="targetShadeL">--</td><td id="targetShadeA">--</td><td id="targetShadeB">--</td></tr>
+                <tr><td>臨床誤差（照片－基礎）</td><td id="targetCorrL">--</td><td id="targetCorrA">--</td><td id="targetCorrB">--</td></tr>
+                <tr><td>技工所基礎值</td><td id="restorationBaseL">--</td><td id="restorationBaseA">--</td><td id="restorationBaseB">--</td></tr>
+                <tr><td>瓷牙照比色片</td><td id="restorationShadeL">--</td><td id="restorationShadeA">--</td><td id="restorationShadeB">--</td></tr>
+                <tr><td>瓷牙誤差（照片－基礎）</td><td id="restorationCorrL">--</td><td id="restorationCorrA">--</td><td id="restorationCorrB">--</td></tr>
               </tbody>
             </table>
           </div>
@@ -749,7 +749,6 @@
     const shadeSelect = document.getElementById("referenceShade");
     shadeGuide.forEach(shade => shadeSelect.add(new Option(shade.name,shade.name)));
     shadeSelect.value = "A2";
-    setReference("A2");
     ["phone","camera"].forEach(type => {
       const select=document.getElementById(type+"BaselineShade");
       shadeGuide.forEach(shade=>select.add(new Option(shade.name,shade.name)));
@@ -804,8 +803,7 @@
       state.canvas.addEventListener("pointercancel",() => state.dragging=false);
     });
 
-    shadeSelect.addEventListener("change",() => { setReference(shadeSelect.value); updateResults(); });
-    ["refL","refA","refB"].forEach(id => document.getElementById(id).addEventListener("input",updateResults));
+    shadeSelect.addEventListener("change",updateResults);
     document.getElementById("radius").addEventListener("input",event => {
       document.getElementById("radiusValue").textContent=event.target.value+" px"; redrawBaselines();redrawAll();
     });
@@ -830,15 +828,6 @@
     ["targetDevice","restorationDevice"].forEach(id=>document.getElementById(id).addEventListener("change",updateResults));
     window.addEventListener("resize",()=>{redrawBaselines();redrawAll()});
 
-    function setReference(name) {
-      const shade=shadeGuide.find(item => item.name===name);
-      document.getElementById("refL").value=shade.lab[0];
-      document.getElementById("refA").value=shade.lab[1];
-      document.getElementById("refB").value=shade.lab[2];
-    }
-    function referenceLab() {
-      return ["refL","refA","refB"].map(id => Number(document.getElementById(id).value));
-    }
     function switchBaselineOwner() {
       Object.values(baselineStates).forEach(state=>{
         state.image=null;state.sample=null;state.display=null;state.input.value="";
@@ -1093,8 +1082,6 @@
       return {rgb,lab:rgbToLab(rgb)};
     }
     function updateResults() {
-      const ref=referenceLab();
-      setTriplet("calRef",ref);
       ["target","restoration"].forEach(side => {
         const state=states[side];
         const tooth=state.points.tooth.sample,shade=state.points.shade.sample;
@@ -1103,12 +1090,18 @@
         const profile=baselineProfiles[owner][device];
         const measuredBaseline=profile?.values?.[shadeSelect.value]?.lab;
         state.device=device;
-        state.correction=measuredBaseline?ref.map((value,index)=>value-measuredBaseline[index]):null;
-        state.corrected=tooth&&shade&&state.correction?tooth.lab.map((v,i)=>i===0?clamp(v+state.correction[i],0,100):v+state.correction[i]):null;
-        state.verification=shade&&state.correction
-          ?deltaE2000(shade.lab.map((v,i)=>i===0?clamp(v+state.correction[i],0,100):v+state.correction[i]),ref)
+        state.baselineLab=measuredBaseline||null;
+        state.error=measuredBaseline&&shade
+          ?shade.lab.map((value,index)=>value-measuredBaseline[index])
           :null;
-        setTriplet(side+"Corr",state.correction,true);
+        state.correction=state.error?state.error.map(value=>-value):null;
+        state.corrected=tooth&&state.error?tooth.lab.map((v,i)=>i===0?clamp(v-state.error[i],0,100):v-state.error[i]):null;
+        state.verification=shade&&measuredBaseline
+          ?deltaE2000(shade.lab,measuredBaseline)
+          :null;
+        setTriplet(side+"Base",measuredBaseline);
+        setTriplet(side+"Shade",shade?.lab||null);
+        setTriplet(side+"Corr",state.error,true);
         setTriplet(side,state.corrected);
         const swatch=document.getElementById(side+"Swatch");
         swatch.style.background=state.corrected?labToCss(state.corrected):"#625b52";
@@ -1117,8 +1110,8 @@
       document.getElementById("calBadge").textContent=readyCount===2?"兩張已套用設備基準":readyCount===1?"已校正一張":"等待設備基準與照片";
       document.getElementById("calBadge").classList.toggle("ready",readyCount===2);
       document.getElementById("calHint").textContent=readyCount===2
-        ?"現場比色板驗證 ΔE₀₀：臨床 "+formatVerification(states.target.verification)+"／瓷牙 "+formatVerification(states.restoration.verification)
-        :"先收集所選設備的 "+shadeSelect.value+" 基礎值，再完成牙齒與比色板取樣";
+        ?"校正前拍攝誤差 ΔE₀₀：臨床 "+formatVerification(states.target.verification)+"／瓷牙 "+formatVerification(states.restoration.verification)
+        :"先選照片中的比色片色號，取得同色號基礎值，再完成牙齒與比色片取樣";
       document.getElementById("step1").classList.toggle("done",!!states.target.corrected);
       document.getElementById("step2").classList.toggle("done",!!states.restoration.corrected);
       updateFlow();
@@ -1147,7 +1140,13 @@
       setDiff("A",diffs[1],diffs[1]>0?"瓷牙較紅":"瓷牙較綠");
       setDiff("B",diffs[2],diffs[2]>0?"瓷牙較黃":"瓷牙較藍");
       lastResult={
-        delta,target,restoration,diffs,ref,shade:nearestShade(target),
+        delta,target,restoration,diffs,shade:nearestShade(target),
+        targetBaseline:states.target.baselineLab,
+        restorationBaseline:states.restoration.baselineLab,
+        targetShadeSample:states.target.points.shade.sample?.lab,
+        restorationShadeSample:states.restoration.points.shade.sample?.lab,
+        targetError:states.target.error,
+        restorationError:states.restoration.error,
         targetCorrection:states.target.correction,
         restorationCorrection:states.restoration.correction,
         targetDevice:states.target.device,
@@ -1187,13 +1186,16 @@
       <h1>大原牙醫瓷牙比色報告</h1><p>建立時間：${now}</p>
       <h2>病例資料</h2><table><tr><th>病例編號</th><th>牙位</th><th>備註</th></tr><tr><td>${val("caseId")}</td><td>${val("toothNo")}</td><td>${val("caseNote")}</td></tr></table>
       <h2>設備基準與案件驗證</h2><p>臨床照設備：${lastResult.targetDevice==="phone"?"手機":"相機"}；瓷牙照設備：${lastResult.restorationDevice==="phone"?"手機":"相機"}</p><table><tr><th></th><th>L*</th><th>a*</th><th>b*</th></tr>
-      <tr><td>參考值</td>${lastResult.ref.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
-      <tr><td>臨床照校正量</td>${lastResult.targetCorrection.map(v=>`<td>${f(v)}</td>`).join("")}</tr>
-      <tr><td>瓷牙照校正量</td>${lastResult.restorationCorrection.map(v=>`<td>${f(v)}</td>`).join("")}</tr></table>
+      <tr><td>診所基礎比色片</td>${lastResult.targetBaseline.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
+      <tr><td>臨床照片比色片</td>${lastResult.targetShadeSample.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
+      <tr><td>臨床拍攝誤差（照片－基礎）</td>${lastResult.targetError.map(v=>`<td>${f(v)}</td>`).join("")}</tr>
+      <tr><td>技工所基礎比色片</td>${lastResult.restorationBaseline.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
+      <tr><td>瓷牙照片比色片</td>${lastResult.restorationShadeSample.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
+      <tr><td>瓷牙拍攝誤差（照片－基礎）</td>${lastResult.restorationError.map(v=>`<td>${f(v)}</td>`).join("")}</tr></table>
       <h2>校正後比色結果</h2><p><strong>CIEDE2000 ΔE₀₀：${lastResult.delta.toFixed(2)}</strong>；臨床牙近似色階：${lastResult.shade.name}</p>
       <table><tr><th></th><th>臨床牙</th><th>完成瓷牙</th><th>差值</th></tr>
       ${["L* 明度","a* 紅綠","b* 黃藍"].map((label,i)=>`<tr><td>${label}</td><td>${lastResult.target[i].toFixed(2)}</td><td>${lastResult.restoration[i].toFixed(2)}</td><td>${f(lastResult.diffs[i])}</td></tr>`).join("")}</table>
-      <p class="note">本報告先套用手機或相機的設備比色板基準，再以案件照片內的比色板檢查校正殘差。結果供病例紀錄與溝通使用，不取代多色塊校正或分光測色儀。</p></body></html>`;
+      <p class="note">計算方式：拍攝誤差＝照片中比色片 Lab－同色號基礎比色片 Lab；自然牙實際 Lab＝照片牙齒 Lab－拍攝誤差。結果供病例紀錄與溝通使用，不取代多色塊校正或分光測色儀。</p></body></html>`;
       const blob=new Blob([html],{type:"application/msword"});
       const link=document.createElement("a");link.href=URL.createObjectURL(blob);
       link.download="大原牙醫瓷牙比色報告_"+(document.getElementById("caseId").value||new Date().toISOString().slice(0,10))+".doc";
@@ -1213,11 +1215,15 @@
         toothNo:document.getElementById("toothNo").value.trim(),
         note:document.getElementById("caseNote").value.trim(),
         referenceShade:shadeSelect.value,
-        referenceLab:referenceLab(),
+        referenceBaseline:{
+          clinic:states.target.baselineLab,
+          laboratory:states.restoration.baselineLab
+        },
         clinic:{
           device:states.target.device,
           baseline:baselineProfiles.clinic[states.target.device],
           correctedLab:target,
+          captureError:states.target.error,
           correction:states.target.correction,
           verificationDeltaE00:states.target.verification,
           capturedAt:target?new Date().toISOString():null
@@ -1226,6 +1232,7 @@
           device:states.restoration.device,
           baseline:baselineProfiles.laboratory[states.restoration.device],
           correctedLab:states.restoration.corrected,
+          captureError:states.restoration.error,
           correction:states.restoration.correction,
           verificationDeltaE00:states.restoration.verification,
           capturedAt:states.restoration.corrected?new Date().toISOString():null
@@ -1314,14 +1321,14 @@
     }
     function resetAll() {
       Object.values(states).forEach(state=>{
-        state.image=null;state.corrected=null;state.correction=null;state.display=null;state.active="tooth";state.input.value="";
+        state.image=null;state.corrected=null;state.error=null;state.correction=null;state.baselineLab=null;state.display=null;state.active="tooth";state.input.value="";
         state.points.tooth={x:.42,y:.5,color:"#55aaff",sample:null};
         state.points.shade={x:.72,y:.5,color:"#a889ff",sample:null};
         state.empty.classList.remove("hidden");state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);
         document.querySelectorAll('.sample-mode[data-side="'+state.side+'"]').forEach(item=>item.classList.toggle("active",item.dataset.point==="tooth"));
       });
       lastResult=null;caseRecord=null;["caseId","toothNo","caseNote"].forEach(id=>document.getElementById(id).value="");
-      shadeSelect.value="A2";setReference("A2");
+      shadeSelect.value="A2";
       document.getElementById("databaseBadge").textContent="本機原型";
       document.getElementById("databaseBadge").classList.remove("ready");
       document.getElementById("databaseStatus").textContent="尚未建立案件";
