@@ -109,6 +109,49 @@
       font-weight: 800;
     }
     .workflow span.done { border-color: rgba(75,211,155,.5); color: var(--green); background: rgba(75,211,155,.08); }
+    .process-board {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #121416;
+    }
+    .process-board h2 {
+      margin: 0 0 11px;
+      font-size: 15px;
+    }
+    .process-steps {
+      display: grid;
+      grid-template-columns: repeat(8,minmax(100px,1fr));
+      gap: 7px;
+    }
+    .process-step {
+      min-height: 78px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: var(--muted);
+      background: var(--panel);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .process-step b {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text);
+      font-size: 12px;
+    }
+    .process-step.current { border-color: var(--gold); background: rgba(226,173,67,.1); }
+    .process-step.done { border-color: rgba(75,211,155,.55); background: rgba(75,211,155,.08); }
+    .role-tag {
+      display: inline-flex;
+      margin-top: 5px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      color: #18130a;
+      background: var(--gold);
+      font-size: 9px;
+      font-weight: 900;
+    }
+    .role-tag.lab { color: white; background: #7558ca; }
 
     .photo-stack { display: grid; background: #090a0b; }
     .photo-panel {
@@ -282,12 +325,35 @@
     .export-box p, .note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
     .note { padding: 11px 12px; }
     .note strong { color: var(--gold2); }
+    .case-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 11px; }
+    .case-actions .button { width: 100%; }
+    .database-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 9px;
+      padding: 10px 11px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .decision {
+      margin: 0 11px 11px;
+      padding: 11px;
+      border-radius: 8px;
+      color: var(--muted);
+      background: #17191b;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .decision.pass { color: #baf5dd; background: rgba(75,211,155,.1); }
+    .decision.revise { color: #ffd0cd; background: rgba(255,102,96,.11); }
     .hidden { display: none !important; }
 
     @media (max-width: 1000px) {
       main { grid-template-columns: 1fr; }
       .workspace { border-right: 0; }
       aside { position: static; max-height: none; border-top: 1px solid var(--line); }
+      .process-steps { grid-template-columns: repeat(4,1fr); }
     }
     @media (max-width: 680px) {
       header { align-items: flex-start; padding: 11px; }
@@ -298,6 +364,8 @@
       .photo-title small { display: none; }
       .form-grid { grid-template-columns: 1fr; }
       .field.full { grid-column: auto; }
+      .process-steps { grid-template-columns: repeat(2,1fr); }
+      .sample-tools { flex-wrap: wrap; justify-content: flex-end; }
     }
     @media print {
       header, .workspace, .export-box { display: none !important; }
@@ -335,6 +403,20 @@
           <span id="step2">2 完成瓷牙＋比色板</span>
         </div>
       </div>
+
+      <section class="process-board" aria-label="比色案件流程">
+        <h2>大原牙醫瓷牙比色流程</h2>
+        <div class="process-steps">
+          <div class="process-step current" id="flow1"><b>1. 相機校正</b>診所與技工所各自拍攝同一已知比色板<span class="role-tag">雙方</span></div>
+          <div class="process-step" id="flow2"><b>2. 臨床拍攝</b>診所拍攝目標牙＋比色板<span class="role-tag">診所</span></div>
+          <div class="process-step" id="flow3"><b>3. 上傳案件</b>建立病例與臨床色彩資料<span class="role-tag">診所</span></div>
+          <div class="process-step" id="flow4"><b>4. 技工所讀取</b>取得目標牙校正後 Lab<span class="role-tag lab">技工所</span></div>
+          <div class="process-step" id="flow5"><b>5. 瓷牙製作</b>依目標色彩完成修復體<span class="role-tag lab">技工所</span></div>
+          <div class="process-step" id="flow6"><b>6. 成品拍攝</b>完成瓷牙＋比色板並計算 ΔE₀₀<span class="role-tag lab">技工所</span></div>
+          <div class="process-step" id="flow7"><b>7. 判斷修色</b>ΔE₀₀ ＞ 3.0 返回調整<span class="role-tag lab">技工所</span></div>
+          <div class="process-step" id="flow8"><b>8. 結案保存</b>ΔE₀₀ ≤ 3.0 保存色差紀錄<span class="role-tag">雙方</span></div>
+        </div>
+      </section>
 
       <div class="photo-stack">
         <article class="photo-panel target">
@@ -388,6 +470,17 @@
         </section>
 
         <section class="card">
+          <h3 class="card-title"><span>案件資料交換</span><span id="databaseBadge" class="status-pill">本機原型</span></h3>
+          <div class="case-actions">
+            <button class="button primary" id="clinicUploadButton" type="button">診所建立／上傳案件</button>
+            <button class="button" id="labReadButton" type="button">技工所讀取案件</button>
+            <button class="button" id="downloadCaseButton" type="button">下載案件 JSON</button>
+            <button class="button" id="closeCaseButton" type="button">儲存並結案</button>
+          </div>
+          <div class="database-status"><span id="databaseStatus">尚未建立案件</span><span>Firebase 接口待設定</span></div>
+        </section>
+
+        <section class="card">
           <h3 class="card-title"><span>照片內比色板資訊</span><span id="calBadge" class="status-pill">等待兩張照片</span></h3>
           <div class="form-grid">
             <label class="field full">照片中的已知色階
@@ -413,6 +506,7 @@
         <section class="card">
           <h3 class="card-title"><span>校正後整體色差</span><span>ΔE₀₀</span></h3>
           <div class="delta"><output id="deltaE">--</output><small>獨立校正後：實際臨床牙 vs 完成瓷牙</small><span class="match" id="matchStatus">等待兩張照片完成取樣</span></div>
+          <p class="decision" id="decision">判定標準：ΔE₀₀ ≤ 3.0 可進入結案；ΔE₀₀ ＞ 3.0 返回技工所修正瓷牙顏色。</p>
         </section>
 
         <section class="card">
@@ -469,6 +563,7 @@
     ];
     const states = Object.fromEntries(["target","restoration"].map(side => [side,createState(side)]));
     let lastResult = null;
+    let caseRecord = null;
 
     function createState(side) {
       return {
@@ -527,6 +622,10 @@
     document.getElementById("printButton").addEventListener("click",() => window.print());
     document.getElementById("downloadDocButton").addEventListener("click",exportGoogleDoc);
     document.getElementById("docButton").addEventListener("click",exportGoogleDoc);
+    document.getElementById("clinicUploadButton").addEventListener("click",createClinicCase);
+    document.getElementById("labReadButton").addEventListener("click",readLabCase);
+    document.getElementById("downloadCaseButton").addEventListener("click",downloadCaseJson);
+    document.getElementById("closeCaseButton").addEventListener("click",closeCase);
     window.addEventListener("resize",redrawAll);
 
     function setReference(name) {
@@ -628,19 +727,28 @@
       document.getElementById("calHint").textContent=readyCount===2?"每張照片已套用各自校正量":"每張照片都需完成牙齒與比色板取樣";
       document.getElementById("step1").classList.toggle("done",!!states.target.corrected);
       document.getElementById("step2").classList.toggle("done",!!states.restoration.corrected);
+      updateFlow();
 
       const target=states.target.corrected,restoration=states.restoration.corrected;
       if(target) updateShade(target);
       if(!target||!restoration) {
         document.getElementById("deltaE").textContent="--";document.getElementById("matchStatus").textContent="請完成兩張照片的牙齒與比色板取樣";
+        const decision=document.getElementById("decision");
+        decision.className="decision";
+        decision.textContent="判定標準：ΔE₀₀ ≤ 3.0 可進入結案；ΔE₀₀ ＞ 3.0 返回技工所修正瓷牙顏色。";
         ["diffL","diffA","diffB"].forEach(id=>document.getElementById(id).textContent="--");
         ["diffLHint","diffAHint","diffBHint"].forEach(id=>document.getElementById(id).textContent="—");
         lastResult=null;return;
       }
       const delta=deltaE2000(target,restoration),diffs=restoration.map((v,i)=>v-target[i]);
       document.getElementById("deltaE").textContent=delta.toFixed(2);
-      document.getElementById("deltaE").style.color=delta<=1.8?"var(--green)":delta<=3.3?"var(--gold)":"var(--red)";
-      document.getElementById("matchStatus").textContent=delta<=1?"極接近":delta<=1.8?"臨床匹配佳":delta<=3.3?"可察覺差異":"建議調整";
+      document.getElementById("deltaE").style.color=delta<=1.8?"var(--green)":delta<=3?"var(--gold)":"var(--red)";
+      document.getElementById("matchStatus").textContent=delta<=1?"極接近":delta<=1.8?"臨床匹配佳":delta<=3?"可接受，能結案":"超過 3.0，返回修色";
+      const decision=document.getElementById("decision");
+      decision.className="decision "+(delta<=3?"pass":"revise");
+      decision.textContent=delta<=3
+        ?"ΔE₀₀ "+delta.toFixed(2)+" ≤ 3.0：符合目前流程標準，可儲存色差並結案。"
+        :"ΔE₀₀ "+delta.toFixed(2)+" ＞ 3.0：請返回技工所修正瓷牙顏色，重新拍攝後再次比對。";
       setDiff("L",diffs[0],diffs[0]>0?"瓷牙較亮":"瓷牙較暗");
       setDiff("A",diffs[1],diffs[1]>0?"瓷牙較紅":"瓷牙較綠");
       setDiff("B",diffs[2],diffs[2]>0?"瓷牙較黃":"瓷牙較藍");
@@ -649,6 +757,7 @@
         targetCorrection:states.target.correction,
         restorationCorrection:states.restoration.correction
       };
+      updateFlow();
     }
     function setTriplet(prefix,values,signed=false) {
       ["L","A","B"].forEach((axis,i)=>{
@@ -692,6 +801,109 @@
       link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
       setTimeout(()=>window.open("https://docs.new","_blank","noopener"),350);
     }
+    function caseIdValue() {
+      const input=document.getElementById("caseId");
+      if(!input.value.trim()) input.value="OH-"+new Date().toISOString().slice(0,10).replaceAll("-","")+"-"+String(Date.now()).slice(-4);
+      return input.value.trim();
+    }
+    function buildCaseRecord(status) {
+      const target=states.target.corrected;
+      return {
+        schemaVersion:1,
+        caseId:caseIdValue(),
+        toothNo:document.getElementById("toothNo").value.trim(),
+        note:document.getElementById("caseNote").value.trim(),
+        referenceShade:shadeSelect.value,
+        referenceLab:referenceLab(),
+        clinic:{
+          correctedLab:target,
+          correction:states.target.correction,
+          capturedAt:target?new Date().toISOString():null
+        },
+        laboratory:{
+          correctedLab:states.restoration.corrected,
+          correction:states.restoration.correction,
+          capturedAt:states.restoration.corrected?new Date().toISOString():null
+        },
+        result:lastResult?{
+          deltaE00:lastResult.delta,
+          difference:lastResult.diffs,
+          decision:lastResult.delta<=3?"accepted":"revise"
+        }:null,
+        status,
+        updatedAt:new Date().toISOString()
+      };
+    }
+    function createClinicCase() {
+      if(!states.target.corrected) {
+        alert("請先匯入臨床牙＋比色板照片，完成牙齒與比色板取樣。");
+        return;
+      }
+      caseRecord=buildCaseRecord("clinic_uploaded");
+      localStorage.setItem("oharaDentalCase:"+caseRecord.caseId,JSON.stringify(caseRecord));
+      document.getElementById("databaseBadge").textContent="診所已上傳";
+      document.getElementById("databaseBadge").classList.add("ready");
+      document.getElementById("databaseStatus").textContent="案件 "+caseRecord.caseId+" 已建立於本機案件庫";
+      updateFlow();
+    }
+    function readLabCase() {
+      const id=caseIdValue();
+      const saved=localStorage.getItem("oharaDentalCase:"+id);
+      if(!saved) {
+        alert("找不到此案件。請先由診所建立／上傳案件。");
+        return;
+      }
+      caseRecord=JSON.parse(saved);
+      caseRecord.status="lab_opened";
+      caseRecord.updatedAt=new Date().toISOString();
+      localStorage.setItem("oharaDentalCase:"+id,JSON.stringify(caseRecord));
+      document.getElementById("databaseBadge").textContent="技工所已讀取";
+      document.getElementById("databaseBadge").classList.add("ready");
+      document.getElementById("databaseStatus").textContent="技工所已讀取案件 "+id+"，可進行瓷牙製作";
+      updateFlow();
+    }
+    function downloadCaseJson() {
+      if(!states.target.corrected) {
+        alert("請先完成臨床照片取樣並建立案件。");
+        return;
+      }
+      caseRecord=buildCaseRecord(caseRecord?.status||"clinic_uploaded");
+      const blob=new Blob([JSON.stringify(caseRecord,null,2)],{type:"application/json"});
+      const link=document.createElement("a");
+      link.href=URL.createObjectURL(blob);
+      link.download=caseRecord.caseId+".json";
+      link.click();
+      setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+    }
+    function closeCase() {
+      if(!lastResult) {
+        alert("請先完成技工所成品照片取樣與色差計算。");
+        return;
+      }
+      if(lastResult.delta>3) {
+        alert("目前 ΔE₀₀ 大於 3.0，請先修正瓷牙顏色後重新拍攝。");
+        return;
+      }
+      caseRecord=buildCaseRecord("closed");
+      localStorage.setItem("oharaDentalCase:"+caseRecord.caseId,JSON.stringify(caseRecord));
+      document.getElementById("databaseBadge").textContent="已結案";
+      document.getElementById("databaseBadge").classList.add("ready");
+      document.getElementById("databaseStatus").textContent="案件 "+caseRecord.caseId+" 已保存色差並結案";
+      updateFlow();
+    }
+    function updateFlow() {
+      const clinicReady=!!states.target.corrected;
+      const uploaded=caseRecord&&["clinic_uploaded","lab_opened","closed"].includes(caseRecord.status);
+      const labOpened=caseRecord&&["lab_opened","closed"].includes(caseRecord.status);
+      const productReady=!!states.restoration.corrected;
+      const compared=!!lastResult;
+      const revise=compared&&lastResult.delta>3;
+      const closed=caseRecord?.status==="closed";
+      const done=[clinicReady,clinicReady,uploaded,labOpened,labOpened,productReady,compared,closed];
+      done.forEach((value,index)=>document.getElementById("flow"+(index+1)).classList.toggle("done",!!value));
+      const current=closed?8:revise?7:compared?8:productReady?6:labOpened?5:uploaded?4:clinicReady?3:1;
+      for(let i=1;i<=8;i++) document.getElementById("flow"+i).classList.toggle("current",i===current);
+    }
     function resetAll() {
       Object.values(states).forEach(state=>{
         state.image=null;state.corrected=null;state.correction=null;state.display=null;state.active="tooth";state.input.value="";
@@ -700,10 +912,13 @@
         state.empty.classList.remove("hidden");state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);
         document.querySelectorAll('.sample-mode[data-side="'+state.side+'"]').forEach(item=>item.classList.toggle("active",item.dataset.point==="tooth"));
       });
-      lastResult=null;["caseId","toothNo","caseNote"].forEach(id=>document.getElementById(id).value="");
+      lastResult=null;caseRecord=null;["caseId","toothNo","caseNote"].forEach(id=>document.getElementById(id).value="");
       shadeSelect.value="A2";setReference("A2");
+      document.getElementById("databaseBadge").textContent="本機原型";
+      document.getElementById("databaseBadge").classList.remove("ready");
+      document.getElementById("databaseStatus").textContent="尚未建立案件";
       document.getElementById("shadeChip").textContent="--";document.getElementById("shadeName").textContent="等待完成校正與取樣";
-      document.getElementById("shadeDescription").textContent="近似色階僅供影像紀錄參考。";updateResults();
+      document.getElementById("shadeDescription").textContent="近似色階僅供影像紀錄參考。";updateResults();updateFlow();
     }
     function rgbToLab(rgb) {
       let [r,g,b]=rgb.map(v=>v/255).map(v=>v>.04045?Math.pow((v+.055)/1.055,2.4):v/12.92);
