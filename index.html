@@ -188,6 +188,17 @@
     .baseline-data select { width: 100%; min-height: 34px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 7px; color: var(--text); background: #15181a; }
     .baseline-status { margin: 8px 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
     .baseline-status.ready { color: var(--green); }
+    .baseline-table-wrap {
+      max-height: 250px;
+      margin-top: 9px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+    }
+    .baseline-table-wrap table { width: 100%; border-collapse: collapse; font-size: 10px; font-variant-numeric: tabular-nums; }
+    .baseline-table-wrap th, .baseline-table-wrap td { padding: 6px; border-bottom: 1px solid var(--line); text-align: right; }
+    .baseline-table-wrap th:first-child, .baseline-table-wrap td:first-child { text-align: left; }
+    .baseline-table-wrap tr.recorded { color: var(--green); }
 
     .photo-stack { display: grid; background: #090a0b; }
     .photo-panel {
@@ -461,9 +472,12 @@
         <div class="baseline-head">
           <div>
             <h2>步驟 0：建立設備比色板基準</h2>
-            <p>手機與相機分開建立。上傳已知色階的比色板照片，將紫色取樣圈移到色階中央後保存。</p>
+            <p>手機與相機各收集 A1–D4 共 16 色。選擇色號、移動取樣圈至色片中央，再記錄該色 Lab。</p>
           </div>
-          <span id="baselineSummary" class="status-pill">尚未建立基準</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="baselineSummary" class="status-pill">尚未建立基準</span>
+            <button class="button" id="downloadBaselineButton" type="button">下載基礎數值</button>
+          </div>
         </div>
         <div class="baseline-grid">
           <article class="baseline-card">
@@ -487,7 +501,8 @@
                   </tbody>
                 </table>
                 <p class="baseline-status" id="phoneBaselineStatus">尚未取樣</p>
-                <button class="button primary" data-save-baseline="phone" type="button">保存手機基準</button>
+                <button class="button primary" data-save-baseline="phone" type="button">記錄此色號</button>
+                <div class="baseline-table-wrap"><table><thead><tr><th>色號</th><th>L*</th><th>a*</th><th>b*</th></tr></thead><tbody id="phoneBaselineRows"></tbody></table></div>
               </div>
             </div>
           </article>
@@ -513,7 +528,8 @@
                   </tbody>
                 </table>
                 <p class="baseline-status" id="cameraBaselineStatus">尚未取樣</p>
-                <button class="button primary" data-save-baseline="camera" type="button">保存相機基準</button>
+                <button class="button primary" data-save-baseline="camera" type="button">記錄此色號</button>
+                <div class="baseline-table-wrap"><table><thead><tr><th>色號</th><th>L*</th><th>a*</th><th>b*</th></tr></thead><tbody id="cameraBaselineRows"></tbody></table></div>
               </div>
             </div>
           </article>
@@ -700,7 +716,10 @@
       };
     }
     function readStoredProfile(type) {
-      try { return JSON.parse(localStorage.getItem("oharaDentalBaseline:"+type))||null; }
+      try {
+        const stored=JSON.parse(localStorage.getItem("oharaDentalBaseline:"+type));
+        return stored?.values ? stored : {type,values:{},updatedAt:null};
+      }
       catch { return null; }
     }
 
@@ -711,7 +730,7 @@
     ["phone","camera"].forEach(type => {
       const select=document.getElementById(type+"BaselineShade");
       shadeGuide.forEach(shade=>select.add(new Option(shade.name,shade.name)));
-      select.value=baselineProfiles[type]?.shade||"A2";
+      select.value="A1";
     });
 
     document.querySelectorAll("[data-baseline-upload]").forEach(button => button.addEventListener("click",() => baselineStates[button.dataset.baselineUpload].input.click()));
@@ -776,6 +795,7 @@
     document.getElementById("labReadButton").addEventListener("click",readLabCase);
     document.getElementById("downloadCaseButton").addEventListener("click",downloadCaseJson);
     document.getElementById("closeCaseButton").addEventListener("click",closeCase);
+    document.getElementById("downloadBaselineButton").addEventListener("click",downloadBaselineDatabase);
     ["targetDevice","restorationDevice"].forEach(id=>document.getElementById(id).addEventListener("change",updateResults));
     window.addEventListener("resize",()=>{redrawBaselines();redrawAll()});
 
@@ -826,27 +846,58 @@
       const state=baselineStates[type];
       if(!state.sample){alert("請先上傳比色板照片並將紫色取樣圈移到色階中央。");return}
       const shadeName=document.getElementById(type+"BaselineShade").value;
-      const reference=shadeGuide.find(item=>item.name===shadeName).lab;
-      const correction=reference.map((value,index)=>value-state.sample.lab[index]);
-      baselineProfiles[type]={type,shade:shadeName,referenceLab:reference,measuredLab:state.sample.lab,correction,createdAt:new Date().toISOString()};
+      const profile=baselineProfiles[type]||{type,values:{}};
+      profile.values[shadeName]={
+        lab:state.sample.lab,
+        rgb:state.sample.rgb,
+        recordedAt:new Date().toISOString()
+      };
+      profile.updatedAt=new Date().toISOString();
+      baselineProfiles[type]=profile;
       localStorage.setItem("oharaDentalBaseline:"+type,JSON.stringify(baselineProfiles[type]));
       refreshBaselineProfiles();updateResults();updateFlow();
+      const currentIndex=shadeGuide.findIndex(item=>item.name===shadeName);
+      const next=shadeGuide.slice(currentIndex+1).find(item=>!profile.values[item.name]);
+      if(next)document.getElementById(type+"BaselineShade").value=next.name;
     }
     function refreshBaselineProfiles() {
       ["phone","camera"].forEach(type=>{
         const profile=baselineProfiles[type],status=document.getElementById(type+"BaselineStatus");
-        if(profile) {
+        const count=Object.keys(profile?.values||{}).length;
+        if(count) {
           status.classList.add("ready");
-          status.textContent="已保存 "+profile.shade+"｜校正量 "+profile.correction.map(value=>(value>=0?"+":"")+value.toFixed(1)).join(" / ");
+          status.textContent="已收集 "+count+" / 16 色"+(count===16?"，基礎資料完成":"");
         } else {
           status.classList.remove("ready");
           if(!baselineStates[type].sample)status.textContent="尚未建立基準";
         }
+        const rows=document.getElementById(type+"BaselineRows");
+        rows.innerHTML=shadeGuide.map(shade=>{
+          const value=profile?.values?.[shade.name]?.lab;
+          return `<tr class="${value?"recorded":""}"><td>${shade.name}</td><td>${value?value[0].toFixed(2):"--"}</td><td>${value?value[1].toFixed(2):"--"}</td><td>${value?value[2].toFixed(2):"--"}</td></tr>`;
+        }).join("");
       });
-      const count=["phone","camera"].filter(type=>!!baselineProfiles[type]).length;
+      const phoneCount=Object.keys(baselineProfiles.phone?.values||{}).length;
+      const cameraCount=Object.keys(baselineProfiles.camera?.values||{}).length;
       const summary=document.getElementById("baselineSummary");
-      summary.textContent=count===2?"手機與相機基準完成":count===1?"已完成一種設備":"尚未建立基準";
-      summary.classList.toggle("ready",count===2);
+      summary.textContent="手機 "+phoneCount+"/16｜相機 "+cameraCount+"/16";
+      summary.classList.toggle("ready",phoneCount===16&&cameraCount===16);
+    }
+    function downloadBaselineDatabase() {
+      const database={
+        schemaVersion:1,
+        shadeSystem:"VITA Classical A1-D4",
+        shades:shadeGuide.map(item=>item.name),
+        phone:baselineProfiles.phone,
+        camera:baselineProfiles.camera,
+        exportedAt:new Date().toISOString()
+      };
+      const blob=new Blob([JSON.stringify(database,null,2)],{type:"application/json"});
+      const link=document.createElement("a");
+      link.href=URL.createObjectURL(blob);
+      link.download="ohara-dental-shade-baseline.json";
+      link.click();
+      setTimeout(()=>URL.revokeObjectURL(link.href),1000);
     }
     function loadFile(state,file) {
       const reader=new FileReader();
@@ -927,11 +978,12 @@
         const tooth=state.points.tooth.sample,shade=state.points.shade.sample;
         const device=document.getElementById(side+"Device").value;
         const profile=baselineProfiles[device];
+        const measuredBaseline=profile?.values?.[shadeSelect.value]?.lab;
         state.device=device;
-        state.correction=profile?.correction||null;
+        state.correction=measuredBaseline?ref.map((value,index)=>value-measuredBaseline[index]):null;
         state.corrected=tooth&&shade&&state.correction?tooth.lab.map((v,i)=>i===0?clamp(v+state.correction[i],0,100):v+state.correction[i]):null;
-        state.verification=shade&&profile
-          ?deltaE2000(shade.lab.map((v,i)=>i===0?clamp(v+profile.correction[i],0,100):v+profile.correction[i]),profile.referenceLab)
+        state.verification=shade&&state.correction
+          ?deltaE2000(shade.lab.map((v,i)=>i===0?clamp(v+state.correction[i],0,100):v+state.correction[i]),ref)
           :null;
         setTriplet(side+"Corr",state.correction,true);
         setTriplet(side,state.corrected);
@@ -943,7 +995,7 @@
       document.getElementById("calBadge").classList.toggle("ready",readyCount===2);
       document.getElementById("calHint").textContent=readyCount===2
         ?"現場比色板驗證 ΔE₀₀：臨床 "+formatVerification(states.target.verification)+"／瓷牙 "+formatVerification(states.restoration.verification)
-        :"先建立所選設備基準，再完成牙齒與比色板取樣";
+        :"先收集所選設備的 "+shadeSelect.value+" 基礎值，再完成牙齒與比色板取樣";
       document.getElementById("step1").classList.toggle("done",!!states.target.corrected);
       document.getElementById("step2").classList.toggle("done",!!states.restoration.corrected);
       updateFlow();
@@ -1122,7 +1174,8 @@
       updateFlow();
     }
     function updateFlow() {
-      const baselineReady=!!baselineProfiles.phone&&!!baselineProfiles.camera;
+      const baselineReady=Object.keys(baselineProfiles.phone?.values||{}).length===16
+        &&Object.keys(baselineProfiles.camera?.values||{}).length===16;
       const clinicReady=!!states.target.corrected;
       const uploaded=caseRecord&&["clinic_uploaded","lab_opened","closed"].includes(caseRecord.status);
       const labOpened=caseRecord&&["lab_opened","closed"].includes(caseRecord.status);
