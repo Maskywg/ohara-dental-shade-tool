@@ -462,7 +462,7 @@
       <section class="process-board" aria-label="比色案件流程">
         <h2>大原牙醫瓷牙比色流程</h2>
         <div class="process-steps">
-          <div class="process-step current" id="flow1"><b>1. 設備基準</b>分別建立手機與相機的比色板基礎數值<span class="role-tag">雙方</span></div>
+          <div class="process-step current" id="flow1"><b>1. 設備基準</b>診所端與技工所端分別建立手機、相機基準<span class="role-tag">雙方</span></div>
           <div class="process-step" id="flow2"><b>2. 臨床拍攝</b>診所拍攝目標牙＋比色板<span class="role-tag">診所</span></div>
           <div class="process-step" id="flow3"><b>3. 上傳案件</b>建立病例與臨床色彩資料<span class="role-tag">診所</span></div>
           <div class="process-step" id="flow4"><b>4. 技工所讀取</b>取得目標牙校正後 Lab<span class="role-tag lab">技工所</span></div>
@@ -477,17 +477,24 @@
         <div class="baseline-head">
           <div>
             <h2>步驟 0：建立設備比色板基準</h2>
-            <p>手機與相機各收集 A1–D4 共 16 色。選擇色號、移動取樣圈至色片中央，再記錄該色 Lab。</p>
+            <p>先選端別，再為手機與相機各收集 A1–D4 共 16 色。JSON 用於完整備份及匯入；CSV 可用 Excel 或 Google Sheets 開啟。</p>
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px">
+            <select id="baselineOwner" class="button" aria-label="基準資料端別">
+              <option value="clinic">診所端基準</option>
+              <option value="laboratory">技工所端基準</option>
+            </select>
             <span id="baselineSummary" class="status-pill">尚未建立基準</span>
-            <button class="button" id="downloadBaselineButton" type="button">下載基礎數值</button>
+            <button class="button" id="downloadBaselineJsonButton" type="button">下載 JSON</button>
+            <button class="button" id="downloadBaselineCsvButton" type="button">下載 CSV</button>
+            <button class="button" id="importBaselineButton" type="button">匯入基礎數值</button>
+            <input class="hidden" id="baselineImportInput" type="file" accept=".json,.csv,application/json,text/csv">
           </div>
         </div>
         <div class="baseline-grid">
           <article class="baseline-card">
             <div class="baseline-title">
-              <strong>手機拍攝基準</strong>
+              <strong id="phoneBaselineTitle">診所端・手機拍攝基準</strong>
               <button class="upload" data-baseline-upload="phone" type="button">上傳手機比色板照</button>
               <input class="hidden" id="phoneBaselineInput" type="file" accept="image/*">
             </div>
@@ -514,7 +521,7 @@
 
           <article class="baseline-card">
             <div class="baseline-title">
-              <strong>相機拍攝基準</strong>
+              <strong id="cameraBaselineTitle">診所端・相機拍攝基準</strong>
               <button class="upload" data-baseline-upload="camera" type="button">上傳相機比色板照</button>
               <input class="hidden" id="cameraBaselineInput" type="file" accept="image/*">
             </div>
@@ -547,8 +554,8 @@
             <div class="photo-title"><span class="badge">1</span><div>實際臨床牙＋比色板<small>照片中必須同時包含目標牙與已知色階片</small></div></div>
             <div class="sample-tools">
               <select id="targetDevice" class="sample-mode" aria-label="臨床照拍攝設備">
-                <option value="phone">使用手機基準</option>
-                <option value="camera">使用相機基準</option>
+                <option value="phone">診所端・手機基準</option>
+                <option value="camera">診所端・相機基準</option>
               </select>
               <button class="sample-mode active" data-side="target" data-point="tooth" type="button">藍圈：牙齒</button>
               <button class="sample-mode" data-side="target" data-point="shade" type="button">紫圈：比色板</button>
@@ -567,8 +574,8 @@
             <div class="photo-title"><span class="badge">2</span><div>完成瓷牙＋比色板<small>放入同一色階片，並盡量維持相同拍攝條件</small></div></div>
             <div class="sample-tools">
               <select id="restorationDevice" class="sample-mode" aria-label="瓷牙照拍攝設備">
-                <option value="camera">使用相機基準</option>
-                <option value="phone">使用手機基準</option>
+                <option value="camera">技工所端・相機基準</option>
+                <option value="phone">技工所端・手機基準</option>
               </select>
               <button class="sample-mode active" data-side="restoration" data-point="tooth" type="button">藍圈：瓷牙</button>
               <button class="sample-mode" data-side="restoration" data-point="shade" type="button">紫圈：比色板</button>
@@ -694,8 +701,14 @@
     ];
     const baselineStates = Object.fromEntries(["phone","camera"].map(type => [type,createBaselineState(type)]));
     const baselineProfiles = {
-      phone:readStoredProfile("phone"),
-      camera:readStoredProfile("camera")
+      clinic:{
+        phone:readStoredProfile("clinic","phone"),
+        camera:readStoredProfile("clinic","camera")
+      },
+      laboratory:{
+        phone:readStoredProfile("laboratory","phone"),
+        camera:readStoredProfile("laboratory","camera")
+      }
     };
     const states = Object.fromEntries(["target","restoration"].map(side => [side,createState(side)]));
     let lastResult = null;
@@ -720,12 +733,17 @@
         empty:document.getElementById(type+"BaselineEmpty")
       };
     }
-    function readStoredProfile(type) {
+    function readStoredProfile(owner,type) {
       try {
-        const stored=JSON.parse(localStorage.getItem("oharaDentalBaseline:"+type));
-        return stored?.values ? stored : {type,values:{},updatedAt:null};
+        const key="oharaDentalBaseline:"+owner+":"+type;
+        let stored=JSON.parse(localStorage.getItem(key));
+        if(!stored?.values&&owner==="clinic") stored=JSON.parse(localStorage.getItem("oharaDentalBaseline:"+type));
+        return stored?.values ? {...stored,owner,type} : {owner,type,values:{},updatedAt:null};
       }
-      catch { return null; }
+      catch { return {owner,type,values:{},updatedAt:null}; }
+    }
+    function activeBaselineOwner() {
+      return document.getElementById("baselineOwner").value;
     }
 
     const shadeSelect = document.getElementById("referenceShade");
@@ -800,7 +818,15 @@
     document.getElementById("labReadButton").addEventListener("click",readLabCase);
     document.getElementById("downloadCaseButton").addEventListener("click",downloadCaseJson);
     document.getElementById("closeCaseButton").addEventListener("click",closeCase);
-    document.getElementById("downloadBaselineButton").addEventListener("click",downloadBaselineDatabase);
+    document.getElementById("baselineOwner").addEventListener("change",switchBaselineOwner);
+    document.getElementById("downloadBaselineJsonButton").addEventListener("click",()=>downloadBaselineDatabase("json"));
+    document.getElementById("downloadBaselineCsvButton").addEventListener("click",()=>downloadBaselineDatabase("csv"));
+    document.getElementById("importBaselineButton").addEventListener("click",()=>document.getElementById("baselineImportInput").click());
+    document.getElementById("baselineImportInput").addEventListener("change",event=>{
+      const file=event.target.files[0];
+      if(file)importBaselineDatabase(file);
+      event.target.value="";
+    });
     ["targetDevice","restorationDevice"].forEach(id=>document.getElementById(id).addEventListener("change",updateResults));
     window.addEventListener("resize",()=>{redrawBaselines();redrawAll()});
 
@@ -812,6 +838,15 @@
     }
     function referenceLab() {
       return ["refL","refA","refB"].map(id => Number(document.getElementById(id).value));
+    }
+    function switchBaselineOwner() {
+      Object.values(baselineStates).forEach(state=>{
+        state.image=null;state.sample=null;state.display=null;state.input.value="";
+        state.empty.classList.remove("hidden");
+        state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);
+        setTriplet(state.type+"Raw",null);
+      });
+      refreshBaselineProfiles();updateResults();
     }
     function loadBaselineFile(state,file) {
       const reader=new FileReader();
@@ -851,24 +886,29 @@
     function saveBaseline(type) {
       const state=baselineStates[type];
       if(!state.sample){alert("請先上傳比色板照片並將紫色取樣圈移到色階中央。");return}
+      const owner=activeBaselineOwner();
       const shadeName=document.getElementById(type+"BaselineShade").value;
-      const profile=baselineProfiles[type]||{type,values:{}};
+      const profile=baselineProfiles[owner][type]||{owner,type,values:{}};
       profile.values[shadeName]={
         lab:state.sample.lab,
         rgb:state.sample.rgb,
         recordedAt:new Date().toISOString()
       };
       profile.updatedAt=new Date().toISOString();
-      baselineProfiles[type]=profile;
-      localStorage.setItem("oharaDentalBaseline:"+type,JSON.stringify(baselineProfiles[type]));
+      baselineProfiles[owner][type]=profile;
+      localStorage.setItem("oharaDentalBaseline:"+owner+":"+type,JSON.stringify(profile));
       refreshBaselineProfiles();updateResults();updateFlow();
       const currentIndex=shadeGuide.findIndex(item=>item.name===shadeName);
       const next=shadeGuide.slice(currentIndex+1).find(item=>!profile.values[item.name]);
       if(next)document.getElementById(type+"BaselineShade").value=next.name;
     }
     function refreshBaselineProfiles() {
+      const owner=activeBaselineOwner();
+      const ownerName=owner==="clinic"?"診所端":"技工所端";
+      document.getElementById("phoneBaselineTitle").textContent=ownerName+"・手機拍攝基準";
+      document.getElementById("cameraBaselineTitle").textContent=ownerName+"・相機拍攝基準";
       ["phone","camera"].forEach(type=>{
-        const profile=baselineProfiles[type],status=document.getElementById(type+"BaselineStatus");
+        const profile=baselineProfiles[owner][type],status=document.getElementById(type+"BaselineStatus");
         const count=Object.keys(profile?.values||{}).length;
         if(count) {
           status.classList.add("ready");
@@ -883,27 +923,103 @@
           return `<tr class="${value?"recorded":""}"><td>${shade.name}</td><td>${value?value[0].toFixed(2):"--"}</td><td>${value?value[1].toFixed(2):"--"}</td><td>${value?value[2].toFixed(2):"--"}</td></tr>`;
         }).join("");
       });
-      const phoneCount=Object.keys(baselineProfiles.phone?.values||{}).length;
-      const cameraCount=Object.keys(baselineProfiles.camera?.values||{}).length;
+      const phoneCount=Object.keys(baselineProfiles[owner].phone?.values||{}).length;
+      const cameraCount=Object.keys(baselineProfiles[owner].camera?.values||{}).length;
       const summary=document.getElementById("baselineSummary");
-      summary.textContent="手機 "+phoneCount+"/16｜相機 "+cameraCount+"/16";
+      summary.textContent=ownerName+"：手機 "+phoneCount+"/16｜相機 "+cameraCount+"/16";
       summary.classList.toggle("ready",phoneCount===16&&cameraCount===16);
     }
-    function downloadBaselineDatabase() {
-      const database={
-        schemaVersion:1,
+    function baselineDatabase() {
+      return {
+        schemaVersion:2,
         shadeSystem:"VITA Classical A1-D4",
         shades:shadeGuide.map(item=>item.name),
-        phone:baselineProfiles.phone,
-        camera:baselineProfiles.camera,
+        owners:baselineProfiles,
         exportedAt:new Date().toISOString()
       };
-      const blob=new Blob([JSON.stringify(database,null,2)],{type:"application/json"});
+    }
+    function triggerDownload(content,type,filename) {
+      const blob=new Blob([content],{type});
       const link=document.createElement("a");
       link.href=URL.createObjectURL(blob);
-      link.download="ohara-dental-shade-baseline.json";
+      link.download=filename;
       link.click();
       setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+    }
+    function downloadBaselineDatabase(format) {
+      const database={
+        ...baselineDatabase()
+      };
+      if(format==="csv") {
+        const rows=[["端別","設備","色號","L*","a*","b*","記錄時間"]];
+        ["clinic","laboratory"].forEach(owner=>["phone","camera"].forEach(type=>{
+          shadeGuide.forEach(shade=>{
+            const value=baselineProfiles[owner][type]?.values?.[shade.name];
+            if(value)rows.push([owner,type,shade.name,...value.lab,value.recordedAt||""]);
+          });
+        }));
+        const csv="\ufeff"+rows.map(row=>row.map(csvCell).join(",")).join("\r\n");
+        triggerDownload(csv,"text/csv;charset=utf-8","ohara-dental-shade-baseline.csv");
+        return;
+      }
+      triggerDownload(JSON.stringify(database,null,2),"application/json","ohara-dental-shade-baseline.json");
+    }
+    function csvCell(value) {
+      const text=String(value??"");
+      return /[",\r\n]/.test(text)?'"'+text.replaceAll('"','""')+'"':text;
+    }
+    function importBaselineDatabase(file) {
+      const reader=new FileReader();
+      reader.onload=()=>{
+        try {
+          if(file.name.toLowerCase().endsWith(".csv")) importBaselineCsv(reader.result);
+          else importBaselineJson(JSON.parse(reader.result));
+          persistBaselineProfiles();
+          refreshBaselineProfiles();updateResults();updateFlow();
+          alert("基礎數值已匯入，診所端與技工所端資料已分別保存。");
+        } catch(error) {
+          alert("無法匯入基礎數值："+error.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+    function importBaselineJson(database) {
+      const owners=database.owners||{
+        clinic:{phone:database.phone,camera:database.camera},
+        laboratory:{phone:null,camera:null}
+      };
+      ["clinic","laboratory"].forEach(owner=>["phone","camera"].forEach(type=>{
+        if(owners?.[owner]?.[type]?.values) baselineProfiles[owner][type]={...owners[owner][type],owner,type};
+      }));
+    }
+    function importBaselineCsv(text) {
+      const lines=text.replace(/^\ufeff/,"").split(/\r?\n/).filter(Boolean);
+      if(lines.length<2)throw new Error("CSV 沒有可匯入的資料");
+      lines.slice(1).forEach(line=>{
+        const cells=parseCsvLine(line);
+        const [owner,type,shade,l,a,b,recordedAt]=cells;
+        if(!baselineProfiles[owner]?.[type]||!shadeGuide.some(item=>item.name===shade))return;
+        const lab=[Number(l),Number(a),Number(b)];
+        if(lab.some(value=>!Number.isFinite(value)))return;
+        baselineProfiles[owner][type].values[shade]={lab,recordedAt:recordedAt||new Date().toISOString()};
+        baselineProfiles[owner][type].updatedAt=new Date().toISOString();
+      });
+    }
+    function parseCsvLine(line) {
+      const cells=[];let value="",quoted=false;
+      for(let i=0;i<line.length;i++) {
+        const char=line[i];
+        if(char==='"'&&quoted&&line[i+1]==='"'){value+='"';i++}
+        else if(char==='"')quoted=!quoted;
+        else if(char===","&&!quoted){cells.push(value);value=""}
+        else value+=char;
+      }
+      cells.push(value);return cells;
+    }
+    function persistBaselineProfiles() {
+      ["clinic","laboratory"].forEach(owner=>["phone","camera"].forEach(type=>{
+        localStorage.setItem("oharaDentalBaseline:"+owner+":"+type,JSON.stringify(baselineProfiles[owner][type]));
+      }));
     }
     function loadFile(state,file) {
       const reader=new FileReader();
@@ -983,7 +1099,8 @@
         const state=states[side];
         const tooth=state.points.tooth.sample,shade=state.points.shade.sample;
         const device=document.getElementById(side+"Device").value;
-        const profile=baselineProfiles[device];
+        const owner=side==="target"?"clinic":"laboratory";
+        const profile=baselineProfiles[owner][device];
         const measuredBaseline=profile?.values?.[shadeSelect.value]?.lab;
         state.device=device;
         state.correction=measuredBaseline?ref.map((value,index)=>value-measuredBaseline[index]):null;
@@ -1099,7 +1216,7 @@
         referenceLab:referenceLab(),
         clinic:{
           device:states.target.device,
-          baseline:baselineProfiles[states.target.device],
+          baseline:baselineProfiles.clinic[states.target.device],
           correctedLab:target,
           correction:states.target.correction,
           verificationDeltaE00:states.target.verification,
@@ -1107,7 +1224,7 @@
         },
         laboratory:{
           device:states.restoration.device,
-          baseline:baselineProfiles[states.restoration.device],
+          baseline:baselineProfiles.laboratory[states.restoration.device],
           correctedLab:states.restoration.corrected,
           correction:states.restoration.correction,
           verificationDeltaE00:states.restoration.verification,
@@ -1180,8 +1297,9 @@
       updateFlow();
     }
     function updateFlow() {
-      const baselineReady=Object.keys(baselineProfiles.phone?.values||{}).length===16
-        &&Object.keys(baselineProfiles.camera?.values||{}).length===16;
+      const baselineReady=["clinic","laboratory"].every(owner=>
+        ["phone","camera"].every(type=>Object.keys(baselineProfiles[owner][type]?.values||{}).length===16)
+      );
       const clinicReady=!!states.target.corrected;
       const uploaded=caseRecord&&["clinic_uploaded","lab_opened","closed"].includes(caseRecord.status);
       const labOpened=caseRecord&&["lab_opened","closed"].includes(caseRecord.status);
