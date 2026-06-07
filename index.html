@@ -152,6 +152,42 @@
       font-weight: 900;
     }
     .role-tag.lab { color: white; background: #7558ca; }
+    .baseline-section {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #15181a;
+    }
+    .baseline-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 11px;
+    }
+    .baseline-head h2 { margin: 0; font-size: 17px; }
+    .baseline-head p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .baseline-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+    .baseline-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+    .baseline-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 11px;
+      border-bottom: 1px solid var(--line);
+    }
+    .baseline-title strong { font-size: 14px; }
+    .baseline-body { display: grid; grid-template-columns: minmax(0,1fr) 210px; min-height: 240px; }
+    .baseline-canvas { position: relative; min-height: 240px; background: #0d0f10; }
+    .baseline-data { padding: 10px; border-left: 1px solid var(--line); }
+    .baseline-data select { width: 100%; min-height: 34px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 7px; color: var(--text); background: #15181a; }
+    .baseline-status { margin: 8px 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .baseline-status.ready { color: var(--green); }
 
     .photo-stack { display: grid; background: #090a0b; }
     .photo-panel {
@@ -354,6 +390,7 @@
       .workspace { border-right: 0; }
       aside { position: static; max-height: none; border-top: 1px solid var(--line); }
       .process-steps { grid-template-columns: repeat(4,1fr); }
+      .baseline-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 680px) {
       header { align-items: flex-start; padding: 11px; }
@@ -366,6 +403,8 @@
       .field.full { grid-column: auto; }
       .process-steps { grid-template-columns: repeat(2,1fr); }
       .sample-tools { flex-wrap: wrap; justify-content: flex-end; }
+      .baseline-body { grid-template-columns: 1fr; }
+      .baseline-data { border-left: 0; border-top: 1px solid var(--line); }
     }
     @media print {
       header, .workspace, .export-box { display: none !important; }
@@ -407,7 +446,7 @@
       <section class="process-board" aria-label="比色案件流程">
         <h2>大原牙醫瓷牙比色流程</h2>
         <div class="process-steps">
-          <div class="process-step current" id="flow1"><b>1. 相機校正</b>診所與技工所各自拍攝同一已知比色板<span class="role-tag">雙方</span></div>
+          <div class="process-step current" id="flow1"><b>1. 設備基準</b>分別建立手機與相機的比色板基礎數值<span class="role-tag">雙方</span></div>
           <div class="process-step" id="flow2"><b>2. 臨床拍攝</b>診所拍攝目標牙＋比色板<span class="role-tag">診所</span></div>
           <div class="process-step" id="flow3"><b>3. 上傳案件</b>建立病例與臨床色彩資料<span class="role-tag">診所</span></div>
           <div class="process-step" id="flow4"><b>4. 技工所讀取</b>取得目標牙校正後 Lab<span class="role-tag lab">技工所</span></div>
@@ -418,11 +457,78 @@
         </div>
       </section>
 
+      <section class="baseline-section" aria-label="設備比色板基準">
+        <div class="baseline-head">
+          <div>
+            <h2>步驟 0：建立設備比色板基準</h2>
+            <p>手機與相機分開建立。上傳已知色階的比色板照片，將紫色取樣圈移到色階中央後保存。</p>
+          </div>
+          <span id="baselineSummary" class="status-pill">尚未建立基準</span>
+        </div>
+        <div class="baseline-grid">
+          <article class="baseline-card">
+            <div class="baseline-title">
+              <strong>手機拍攝基準</strong>
+              <button class="upload" data-baseline-upload="phone" type="button">上傳手機比色板照</button>
+              <input class="hidden" id="phoneBaselineInput" type="file" accept="image/*">
+            </div>
+            <div class="baseline-body">
+              <div class="baseline-canvas">
+                <canvas id="phoneBaselineCanvas" aria-label="手機比色板基準取樣區"></canvas>
+                <div class="empty" id="phoneBaselineEmpty"><span class="plus">＋</span><strong>手機比色板照片</strong><span>使用固定拍攝設定與已知色階</span></div>
+              </div>
+              <div class="baseline-data">
+                <select id="phoneBaselineShade" aria-label="手機基準色階"></select>
+                <table class="mini-table">
+                  <tbody>
+                    <tr><td>測得 L*</td><td id="phoneRawL">--</td></tr>
+                    <tr><td>測得 a*</td><td id="phoneRawA">--</td></tr>
+                    <tr><td>測得 b*</td><td id="phoneRawB">--</td></tr>
+                  </tbody>
+                </table>
+                <p class="baseline-status" id="phoneBaselineStatus">尚未取樣</p>
+                <button class="button primary" data-save-baseline="phone" type="button">保存手機基準</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="baseline-card">
+            <div class="baseline-title">
+              <strong>相機拍攝基準</strong>
+              <button class="upload" data-baseline-upload="camera" type="button">上傳相機比色板照</button>
+              <input class="hidden" id="cameraBaselineInput" type="file" accept="image/*">
+            </div>
+            <div class="baseline-body">
+              <div class="baseline-canvas">
+                <canvas id="cameraBaselineCanvas" aria-label="相機比色板基準取樣區"></canvas>
+                <div class="empty" id="cameraBaselineEmpty"><span class="plus">＋</span><strong>相機比色板照片</strong><span>建議保存相機型號與固定曝光設定</span></div>
+              </div>
+              <div class="baseline-data">
+                <select id="cameraBaselineShade" aria-label="相機基準色階"></select>
+                <table class="mini-table">
+                  <tbody>
+                    <tr><td>測得 L*</td><td id="cameraRawL">--</td></tr>
+                    <tr><td>測得 a*</td><td id="cameraRawA">--</td></tr>
+                    <tr><td>測得 b*</td><td id="cameraRawB">--</td></tr>
+                  </tbody>
+                </table>
+                <p class="baseline-status" id="cameraBaselineStatus">尚未取樣</p>
+                <button class="button primary" data-save-baseline="camera" type="button">保存相機基準</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <div class="photo-stack">
         <article class="photo-panel target">
           <div class="photo-head">
             <div class="photo-title"><span class="badge">1</span><div>實際臨床牙＋比色板<small>照片中必須同時包含目標牙與已知色階片</small></div></div>
             <div class="sample-tools">
+              <select id="targetDevice" class="sample-mode" aria-label="臨床照拍攝設備">
+                <option value="phone">使用手機基準</option>
+                <option value="camera">使用相機基準</option>
+              </select>
               <button class="sample-mode active" data-side="target" data-point="tooth" type="button">藍圈：牙齒</button>
               <button class="sample-mode" data-side="target" data-point="shade" type="button">紫圈：比色板</button>
               <button class="upload" data-upload="target" type="button">匯入臨床照</button>
@@ -439,6 +545,10 @@
           <div class="photo-head">
             <div class="photo-title"><span class="badge">2</span><div>完成瓷牙＋比色板<small>放入同一色階片，並盡量維持相同拍攝條件</small></div></div>
             <div class="sample-tools">
+              <select id="restorationDevice" class="sample-mode" aria-label="瓷牙照拍攝設備">
+                <option value="camera">使用相機基準</option>
+                <option value="phone">使用手機基準</option>
+              </select>
               <button class="sample-mode active" data-side="restoration" data-point="tooth" type="button">藍圈：瓷牙</button>
               <button class="sample-mode" data-side="restoration" data-point="shade" type="button">紫圈：比色板</button>
               <button class="upload" data-upload="restoration" type="button">匯入瓷牙照</button>
@@ -457,7 +567,7 @@
       <div class="result-head">
         <p class="eyebrow">OHARA DENTAL COLOR RECORD</p>
         <h2>校正與比色紀錄</h2>
-        <p>每張照片分別以照片內的比色板校正，再比較兩者的牙齒數值。</p>
+        <p>先套用手機／相機設備基準，再以照片內比色板驗證並比較牙齒數值。</p>
       </div>
       <div class="result-body">
         <section class="card">
@@ -481,7 +591,7 @@
         </section>
 
         <section class="card">
-          <h3 class="card-title"><span>照片內比色板資訊</span><span id="calBadge" class="status-pill">等待兩張照片</span></h3>
+          <h3 class="card-title"><span>設備基準與現場比色板驗證</span><span id="calBadge" class="status-pill">等待設備基準</span></h3>
           <div class="form-grid">
             <label class="field full">照片中的已知色階
               <select id="referenceShade"></select>
@@ -491,7 +601,7 @@
             <label class="field">參考 b*<input id="refB" type="number" step="0.1"></label>
           </div>
           <div class="cal-status">
-            <div class="status-line"><strong>兩張照片的獨立校正量</strong><span id="calHint" style="color:var(--muted);font-size:11px">等待比色板取樣</span></div>
+            <div class="status-line"><strong>選用設備的基礎校正量</strong><span id="calHint" style="color:var(--muted);font-size:11px">等待設備基準與照片</span></div>
             <table class="mini-table">
               <thead><tr><th></th><th>L*</th><th>a*</th><th>b*</th></tr></thead>
               <tbody>
@@ -548,7 +658,7 @@
           <p>按下後會下載包含本次數值的 `.doc` 報告，並開啟 Google Docs。將檔案上傳至 Google Drive 即可轉為 Google 文件。</p>
         </section>
 
-        <section class="card"><p class="note"><strong>操作重點：</strong>兩張照片都必須放入同一片已知色階，且色階與牙齒盡量位於相同焦平面。藍圈取樣牙齒，紫圈取樣比色板。單色階校正仍不能完全取代多色塊校正或分光測色儀。</p></section>
+        <section class="card"><p class="note"><strong>操作重點：</strong>先各自建立手機與相機的比色板基準。案件照片選擇實際拍攝設備；藍圈取樣牙齒，紫圈檢查照片內比色板套用基準後的殘餘色差。設備設定、燈光或鏡頭改變時應重新建立基準。</p></section>
       </div>
     </aside>
   </main>
@@ -561,6 +671,11 @@
       {name:"C1",lab:[78,0,11]},{name:"C2",lab:[73,.5,15]},{name:"C3",lab:[68,1,18]},
       {name:"C4",lab:[63,1.5,21]},{name:"D2",lab:[77,2.5,13]},{name:"D3",lab:[72,3.5,17]},{name:"D4",lab:[68,3,19]}
     ];
+    const baselineStates = Object.fromEntries(["phone","camera"].map(type => [type,createBaselineState(type)]));
+    const baselineProfiles = {
+      phone:readStoredProfile("phone"),
+      camera:readStoredProfile("camera")
+    };
     const states = Object.fromEntries(["target","restoration"].map(side => [side,createState(side)]));
     let lastResult = null;
     let caseRecord = null;
@@ -576,11 +691,46 @@
         empty:document.getElementById(side+"Empty")
       };
     }
+    function createBaselineState(type) {
+      return {
+        type,image:null,sample:null,x:.5,y:.5,dragging:false,display:null,
+        canvas:document.getElementById(type+"BaselineCanvas"),
+        input:document.getElementById(type+"BaselineInput"),
+        empty:document.getElementById(type+"BaselineEmpty")
+      };
+    }
+    function readStoredProfile(type) {
+      try { return JSON.parse(localStorage.getItem("oharaDentalBaseline:"+type))||null; }
+      catch { return null; }
+    }
 
     const shadeSelect = document.getElementById("referenceShade");
     shadeGuide.forEach(shade => shadeSelect.add(new Option(shade.name,shade.name)));
     shadeSelect.value = "A2";
     setReference("A2");
+    ["phone","camera"].forEach(type => {
+      const select=document.getElementById(type+"BaselineShade");
+      shadeGuide.forEach(shade=>select.add(new Option(shade.name,shade.name)));
+      select.value=baselineProfiles[type]?.shade||"A2";
+    });
+
+    document.querySelectorAll("[data-baseline-upload]").forEach(button => button.addEventListener("click",() => baselineStates[button.dataset.baselineUpload].input.click()));
+    document.querySelectorAll("[data-save-baseline]").forEach(button => button.addEventListener("click",() => saveBaseline(button.dataset.saveBaseline)));
+    Object.values(baselineStates).forEach(state => {
+      state.ctx=state.canvas.getContext("2d",{willReadFrequently:true});
+      state.input.addEventListener("change",event => {
+        const file=event.target.files[0];
+        if(file)loadBaselineFile(state,file);
+      });
+      state.canvas.addEventListener("pointerdown",event => {
+        if(!state.image)return;
+        state.dragging=true;state.canvas.setPointerCapture(event.pointerId);moveBaselineSample(state,event);
+      });
+      state.canvas.addEventListener("pointermove",event=>{if(state.dragging)moveBaselineSample(state,event)});
+      state.canvas.addEventListener("pointerup",()=>state.dragging=false);
+      state.canvas.addEventListener("pointercancel",()=>state.dragging=false);
+    });
+    refreshBaselineProfiles();
 
     document.querySelectorAll("[data-upload]").forEach(button => button.addEventListener("click",() => states[button.dataset.upload].input.click()));
     document.querySelectorAll(".sample-mode").forEach(button => button.addEventListener("click",() => {
@@ -615,9 +765,9 @@
     shadeSelect.addEventListener("change",() => { setReference(shadeSelect.value); updateResults(); });
     ["refL","refA","refB"].forEach(id => document.getElementById(id).addEventListener("input",updateResults));
     document.getElementById("radius").addEventListener("input",event => {
-      document.getElementById("radiusValue").textContent=event.target.value+" px"; redrawAll();
+      document.getElementById("radiusValue").textContent=event.target.value+" px"; redrawBaselines();redrawAll();
     });
-    document.getElementById("excludeHighlights").addEventListener("change",redrawAll);
+    document.getElementById("excludeHighlights").addEventListener("change",()=>{redrawBaselines();redrawAll()});
     document.getElementById("resetButton").addEventListener("click",resetAll);
     document.getElementById("printButton").addEventListener("click",() => window.print());
     document.getElementById("downloadDocButton").addEventListener("click",exportGoogleDoc);
@@ -626,7 +776,8 @@
     document.getElementById("labReadButton").addEventListener("click",readLabCase);
     document.getElementById("downloadCaseButton").addEventListener("click",downloadCaseJson);
     document.getElementById("closeCaseButton").addEventListener("click",closeCase);
-    window.addEventListener("resize",redrawAll);
+    ["targetDevice","restorationDevice"].forEach(id=>document.getElementById(id).addEventListener("change",updateResults));
+    window.addEventListener("resize",()=>{redrawBaselines();redrawAll()});
 
     function setReference(name) {
       const shade=shadeGuide.find(item => item.name===name);
@@ -636,6 +787,66 @@
     }
     function referenceLab() {
       return ["refL","refA","refB"].map(id => Number(document.getElementById(id).value));
+    }
+    function loadBaselineFile(state,file) {
+      const reader=new FileReader();
+      reader.onload=()=>{
+        const image=new Image();
+        image.onload=()=>{
+          state.image=image;state.x=.5;state.y=.5;state.empty.classList.add("hidden");drawBaseline(state);
+        };
+        image.src=reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    function moveBaselineSample(state,event) {
+      const rect=state.canvas.getBoundingClientRect();
+      if(!state.display)return;
+      state.x=clamp((event.clientX-rect.left-state.display.x)/state.display.w,0,1);
+      state.y=clamp((event.clientY-rect.top-state.display.y)/state.display.h,0,1);
+      drawBaseline(state);
+    }
+    function redrawBaselines(){Object.values(baselineStates).forEach(drawBaseline)}
+    function drawBaseline(state) {
+      const rect=state.canvas.parentElement.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+      const width=Math.max(1,Math.round(rect.width)),height=Math.max(1,Math.round(rect.height));
+      state.canvas.width=Math.round(width*dpr);state.canvas.height=Math.round(height*dpr);
+      state.ctx.setTransform(dpr,0,0,dpr,0,0);state.ctx.clearRect(0,0,width,height);
+      if(!state.image)return;
+      const scale=Math.min(width/state.image.naturalWidth,height/state.image.naturalHeight);
+      const w=state.image.naturalWidth*scale,h=state.image.naturalHeight*scale,x=(width-w)/2,y=(height-h)/2;
+      state.display={x,y,w,h};state.ctx.drawImage(state.image,x,y,w,h);
+      const cx=x+state.x*w,cy=y+state.y*h,radius=Number(document.getElementById("radius").value);
+      state.sample=sampleCircle(state,cx,cy,radius);
+      drawMarker(state,cx,cy,radius,{color:"#a889ff"},"shade");
+      setTriplet(state.type+"Raw",state.sample?.lab||null);
+      document.getElementById(state.type+"BaselineStatus").textContent=state.sample?"已取得影像 Lab，請保存設備基準":"尚未取樣";
+    }
+    function saveBaseline(type) {
+      const state=baselineStates[type];
+      if(!state.sample){alert("請先上傳比色板照片並將紫色取樣圈移到色階中央。");return}
+      const shadeName=document.getElementById(type+"BaselineShade").value;
+      const reference=shadeGuide.find(item=>item.name===shadeName).lab;
+      const correction=reference.map((value,index)=>value-state.sample.lab[index]);
+      baselineProfiles[type]={type,shade:shadeName,referenceLab:reference,measuredLab:state.sample.lab,correction,createdAt:new Date().toISOString()};
+      localStorage.setItem("oharaDentalBaseline:"+type,JSON.stringify(baselineProfiles[type]));
+      refreshBaselineProfiles();updateResults();updateFlow();
+    }
+    function refreshBaselineProfiles() {
+      ["phone","camera"].forEach(type=>{
+        const profile=baselineProfiles[type],status=document.getElementById(type+"BaselineStatus");
+        if(profile) {
+          status.classList.add("ready");
+          status.textContent="已保存 "+profile.shade+"｜校正量 "+profile.correction.map(value=>(value>=0?"+":"")+value.toFixed(1)).join(" / ");
+        } else {
+          status.classList.remove("ready");
+          if(!baselineStates[type].sample)status.textContent="尚未建立基準";
+        }
+      });
+      const count=["phone","camera"].filter(type=>!!baselineProfiles[type]).length;
+      const summary=document.getElementById("baselineSummary");
+      summary.textContent=count===2?"手機與相機基準完成":count===1?"已完成一種設備":"尚未建立基準";
+      summary.classList.toggle("ready",count===2);
     }
     function loadFile(state,file) {
       const reader=new FileReader();
@@ -714,17 +925,25 @@
       ["target","restoration"].forEach(side => {
         const state=states[side];
         const tooth=state.points.tooth.sample,shade=state.points.shade.sample;
-        state.correction=shade&&ref.every(Number.isFinite)?ref.map((v,i)=>v-shade.lab[i]):null;
-        state.corrected=tooth&&state.correction?tooth.lab.map((v,i)=>i===0?clamp(v+state.correction[i],0,100):v+state.correction[i]):null;
+        const device=document.getElementById(side+"Device").value;
+        const profile=baselineProfiles[device];
+        state.device=device;
+        state.correction=profile?.correction||null;
+        state.corrected=tooth&&shade&&state.correction?tooth.lab.map((v,i)=>i===0?clamp(v+state.correction[i],0,100):v+state.correction[i]):null;
+        state.verification=shade&&profile
+          ?deltaE2000(shade.lab.map((v,i)=>i===0?clamp(v+profile.correction[i],0,100):v+profile.correction[i]),profile.referenceLab)
+          :null;
         setTriplet(side+"Corr",state.correction,true);
         setTriplet(side,state.corrected);
         const swatch=document.getElementById(side+"Swatch");
         swatch.style.background=state.corrected?labToCss(state.corrected):"#625b52";
       });
       const readyCount=["target","restoration"].filter(side=>!!states[side].corrected).length;
-      document.getElementById("calBadge").textContent=readyCount===2?"兩張均已校正":readyCount===1?"已校正一張":"等待兩張照片";
+      document.getElementById("calBadge").textContent=readyCount===2?"兩張已套用設備基準":readyCount===1?"已校正一張":"等待設備基準與照片";
       document.getElementById("calBadge").classList.toggle("ready",readyCount===2);
-      document.getElementById("calHint").textContent=readyCount===2?"每張照片已套用各自校正量":"每張照片都需完成牙齒與比色板取樣";
+      document.getElementById("calHint").textContent=readyCount===2
+        ?"現場比色板驗證 ΔE₀₀：臨床 "+formatVerification(states.target.verification)+"／瓷牙 "+formatVerification(states.restoration.verification)
+        :"先建立所選設備基準，再完成牙齒與比色板取樣";
       document.getElementById("step1").classList.toggle("done",!!states.target.corrected);
       document.getElementById("step2").classList.toggle("done",!!states.restoration.corrected);
       updateFlow();
@@ -755,10 +974,15 @@
       lastResult={
         delta,target,restoration,diffs,ref,shade:nearestShade(target),
         targetCorrection:states.target.correction,
-        restorationCorrection:states.restoration.correction
+        restorationCorrection:states.restoration.correction,
+        targetDevice:states.target.device,
+        restorationDevice:states.restoration.device,
+        targetVerification:states.target.verification,
+        restorationVerification:states.restoration.verification
       };
       updateFlow();
     }
+    function formatVerification(value){return Number.isFinite(value)?value.toFixed(2):"--"}
     function setTriplet(prefix,values,signed=false) {
       ["L","A","B"].forEach((axis,i)=>{
         const el=document.getElementById(prefix+axis);if(!el)return;
@@ -787,14 +1011,14 @@
       <style>body{font-family:Arial,"Microsoft JhengHei",sans-serif;color:#222;line-height:1.55;margin:36px}h1{color:#795b20;border-bottom:3px solid #d8aa4a;padding-bottom:10px}h2{margin-top:26px;color:#444}table{width:100%;border-collapse:collapse;margin:10px 0 22px}th,td{border:1px solid #bbb;padding:9px;text-align:center}th{background:#f3ead8}.note{padding:12px;background:#fff7e6;border-left:4px solid #d8aa4a}</style></head><body>
       <h1>大原牙醫瓷牙比色報告</h1><p>建立時間：${now}</p>
       <h2>病例資料</h2><table><tr><th>病例編號</th><th>牙位</th><th>備註</th></tr><tr><td>${val("caseId")}</td><td>${val("toothNo")}</td><td>${val("caseNote")}</td></tr></table>
-      <h2>兩張照片獨立校正</h2><p>照片內已知色階：${escapeHtml(shadeSelect.value)}</p><table><tr><th></th><th>L*</th><th>a*</th><th>b*</th></tr>
+      <h2>設備基準與案件驗證</h2><p>臨床照設備：${lastResult.targetDevice==="phone"?"手機":"相機"}；瓷牙照設備：${lastResult.restorationDevice==="phone"?"手機":"相機"}</p><table><tr><th></th><th>L*</th><th>a*</th><th>b*</th></tr>
       <tr><td>參考值</td>${lastResult.ref.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
       <tr><td>臨床照校正量</td>${lastResult.targetCorrection.map(v=>`<td>${f(v)}</td>`).join("")}</tr>
       <tr><td>瓷牙照校正量</td>${lastResult.restorationCorrection.map(v=>`<td>${f(v)}</td>`).join("")}</tr></table>
       <h2>校正後比色結果</h2><p><strong>CIEDE2000 ΔE₀₀：${lastResult.delta.toFixed(2)}</strong>；臨床牙近似色階：${lastResult.shade.name}</p>
       <table><tr><th></th><th>臨床牙</th><th>完成瓷牙</th><th>差值</th></tr>
       ${["L* 明度","a* 紅綠","b* 黃藍"].map((label,i)=>`<tr><td>${label}</td><td>${lastResult.target[i].toFixed(2)}</td><td>${lastResult.restoration[i].toFixed(2)}</td><td>${f(lastResult.diffs[i])}</td></tr>`).join("")}</table>
-      <p class="note">兩張照片均使用照片內的同一已知色階獨立校正。結果供病例紀錄與溝通使用，不取代標準化多色塊校正或分光測色儀。</p></body></html>`;
+      <p class="note">本報告先套用手機或相機的設備比色板基準，再以案件照片內的比色板檢查校正殘差。結果供病例紀錄與溝通使用，不取代多色塊校正或分光測色儀。</p></body></html>`;
       const blob=new Blob([html],{type:"application/msword"});
       const link=document.createElement("a");link.href=URL.createObjectURL(blob);
       link.download="大原牙醫瓷牙比色報告_"+(document.getElementById("caseId").value||new Date().toISOString().slice(0,10))+".doc";
@@ -816,13 +1040,19 @@
         referenceShade:shadeSelect.value,
         referenceLab:referenceLab(),
         clinic:{
+          device:states.target.device,
+          baseline:baselineProfiles[states.target.device],
           correctedLab:target,
           correction:states.target.correction,
+          verificationDeltaE00:states.target.verification,
           capturedAt:target?new Date().toISOString():null
         },
         laboratory:{
+          device:states.restoration.device,
+          baseline:baselineProfiles[states.restoration.device],
           correctedLab:states.restoration.corrected,
           correction:states.restoration.correction,
+          verificationDeltaE00:states.restoration.verification,
           capturedAt:states.restoration.corrected?new Date().toISOString():null
         },
         result:lastResult?{
@@ -892,6 +1122,7 @@
       updateFlow();
     }
     function updateFlow() {
+      const baselineReady=!!baselineProfiles.phone&&!!baselineProfiles.camera;
       const clinicReady=!!states.target.corrected;
       const uploaded=caseRecord&&["clinic_uploaded","lab_opened","closed"].includes(caseRecord.status);
       const labOpened=caseRecord&&["lab_opened","closed"].includes(caseRecord.status);
@@ -899,9 +1130,9 @@
       const compared=!!lastResult;
       const revise=compared&&lastResult.delta>3;
       const closed=caseRecord?.status==="closed";
-      const done=[clinicReady,clinicReady,uploaded,labOpened,labOpened,productReady,compared,closed];
+      const done=[baselineReady,clinicReady,uploaded,labOpened,labOpened,productReady,compared,closed];
       done.forEach((value,index)=>document.getElementById("flow"+(index+1)).classList.toggle("done",!!value));
-      const current=closed?8:revise?7:compared?8:productReady?6:labOpened?5:uploaded?4:clinicReady?3:1;
+      const current=closed?8:revise?7:compared?8:productReady?6:labOpened?5:uploaded?4:clinicReady?3:baselineReady?2:1;
       for(let i=1;i<=8;i++) document.getElementById("flow"+i).classList.toggle("current",i===current);
     }
     function resetAll() {
@@ -950,7 +1181,7 @@
     function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
     function hexToRgba(hex,a){const v=parseInt(hex.slice(1),16);return `rgba(${v>>16&255},${v>>8&255},${v&255},${a})`}
     function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-    redrawAll();
+    redrawBaselines();redrawAll();updateFlow();
   </script>
 </body>
 </html>
