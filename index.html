@@ -166,7 +166,7 @@
     }
     .baseline-head h2 { margin: 0; font-size: 17px; }
     .baseline-head p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
-    .baseline-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+    .baseline-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
     .baseline-card {
       overflow: hidden;
       border: 1px solid var(--line);
@@ -182,8 +182,13 @@
       border-bottom: 1px solid var(--line);
     }
     .baseline-title strong { font-size: 14px; }
-    .baseline-body { display: grid; grid-template-columns: minmax(0,1fr) 210px; min-height: 240px; }
-    .baseline-canvas { position: relative; min-height: 240px; background: #0d0f10; }
+    .baseline-body { display: grid; grid-template-columns: minmax(0,1fr) 280px; min-height: 300px; }
+    .baseline-canvas {
+      position: relative;
+      min-width: 0;
+      height: 300px;
+      background: #0d0f10;
+    }
     .baseline-data { padding: 10px; border-left: 1px solid var(--line); }
     .baseline-data select { width: 100%; min-height: 34px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 7px; color: var(--text); background: #15181a; }
     .baseline-status { margin: 8px 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
@@ -836,7 +841,8 @@
       const scale=Math.min(width/state.image.naturalWidth,height/state.image.naturalHeight);
       const w=state.image.naturalWidth*scale,h=state.image.naturalHeight*scale,x=(width-w)/2,y=(height-h)/2;
       state.display={x,y,w,h};state.ctx.drawImage(state.image,x,y,w,h);
-      const cx=x+state.x*w,cy=y+state.y*h,radius=Number(document.getElementById("radius").value);
+      const cx=x+state.x*w,cy=y+state.y*h;
+      const radius=Math.max(7,Math.min(12,Math.round(Math.min(width,height)*.035)));
       state.sample=sampleCircle(state,cx,cy,radius);
       drawMarker(state,cx,cy,radius,{color:"#a889ff"},"shade");
       setTriplet(state.type+"Raw",state.sample?.lab||null);
