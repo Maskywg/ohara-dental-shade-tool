@@ -636,12 +636,16 @@
         <section class="card">
           <h3 class="card-title"><span>案件資料交換</span><span id="databaseBadge" class="status-pill">本機原型</span></h3>
           <div class="case-actions">
-            <button class="button primary" id="clinicUploadButton" type="button">診所建立／上傳案件</button>
-            <button class="button" id="labReadButton" type="button">技工所讀取案件</button>
+            <button class="button primary" id="clinicUploadButton" type="button">診所建立案件</button>
+            <button class="button" id="importCaseButton" type="button">技工所匯入案件 JSON</button>
             <button class="button" id="downloadCaseButton" type="button">下載案件 JSON</button>
+            <button class="button" id="downloadCaseCsvButton" type="button">下載案件 CSV</button>
+            <button class="button" id="downloadClinicPhotoButton" type="button">下載臨床照片</button>
             <button class="button" id="closeCaseButton" type="button">儲存並結案</button>
+            <input class="hidden" id="caseImportInput" type="file" accept=".json,application/json">
           </div>
-          <div class="database-status"><span id="databaseStatus">尚未建立案件</span><span>Firebase 接口待設定</span></div>
+          <div class="database-status"><span id="databaseStatus">尚未建立案件</span><span>目前採 JSON／CSV／照片檔案交換</span></div>
+          <p class="note"><strong>傳送方式：</strong>診所建立案件後，下載案件 JSON 傳給技工所。JSON 已包含臨床照片、診所基準、拍攝誤差與校正後自然牙 Lab；也可另外下載 CSV 與原始臨床照片，透過 Email、LINE 或雲端硬碟傳送。技工所收到後按「技工所匯入案件 JSON」。</p>
         </section>
 
         <section class="card">
@@ -666,6 +670,7 @@
               </tbody>
             </table>
           </div>
+          <p class="note"><strong>兩端環境校正：</strong>診所端以「診所設備基準＋臨床照內比色片」校正自然牙；技工所端以「技工所設備基準＋瓷牙照內比色片」校正完成瓷牙。最後比較兩邊各自校正後的 Lab，藉此降低不同燈光、相機與環境造成的差異。</p>
         </section>
 
         <section class="card">
@@ -840,8 +845,15 @@
     document.getElementById("downloadDocButton").addEventListener("click",exportGoogleDoc);
     document.getElementById("docButton").addEventListener("click",exportGoogleDoc);
     document.getElementById("clinicUploadButton").addEventListener("click",createClinicCase);
-    document.getElementById("labReadButton").addEventListener("click",readLabCase);
+    document.getElementById("importCaseButton").addEventListener("click",()=>document.getElementById("caseImportInput").click());
+    document.getElementById("caseImportInput").addEventListener("change",event=>{
+      const file=event.target.files[0];
+      if(file)importCaseJson(file);
+      event.target.value="";
+    });
     document.getElementById("downloadCaseButton").addEventListener("click",downloadCaseJson);
+    document.getElementById("downloadCaseCsvButton").addEventListener("click",downloadCaseCsv);
+    document.getElementById("downloadClinicPhotoButton").addEventListener("click",downloadClinicPhoto);
     document.getElementById("closeCaseButton").addEventListener("click",closeCase);
     document.getElementById("baselineOwner").addEventListener("change",switchBaselineOwner);
     document.getElementById("downloadBaselineJsonButton").addEventListener("click",()=>downloadBaselineDatabase("json"));
@@ -1040,6 +1052,8 @@
     function loadFile(state,file) {
       const reader=new FileReader();
       reader.onload=() => {
+        state.imageDataUrl=reader.result;
+        state.fileName=file.name||null;
         const image=new Image();
         image.onload=() => {
           state.image=image;
@@ -1237,7 +1251,7 @@
     function buildCaseRecord(status) {
       const target=states.target.corrected;
       return {
-        schemaVersion:1,
+        schemaVersion:2,
         caseId:caseIdValue(),
         toothNo:document.getElementById("toothNo").value.trim(),
         note:document.getElementById("caseNote").value.trim(),
@@ -1249,6 +1263,16 @@
         clinic:{
           device:states.target.device,
           baseline:baselineProfiles.clinic[states.target.device],
+          photo:{
+            name:states.target.fileName||"clinical-photo.jpg",
+            dataUrl:states.target.imageDataUrl||null
+          },
+          samplePoints:{
+            tooth:{x:states.target.points.tooth.x,y:states.target.points.tooth.y},
+            shade:{x:states.target.points.shade.x,y:states.target.points.shade.y}
+          },
+          rawToothLab:states.target.points.tooth.sample?.lab||null,
+          rawShadeLab:states.target.points.shade.sample?.lab||null,
           correctedLab:target,
           captureError:states.target.error,
           correction:states.target.correction,
@@ -1279,27 +1303,67 @@
         return;
       }
       caseRecord=buildCaseRecord("clinic_uploaded");
-      localStorage.setItem("oharaDentalCase:"+caseRecord.caseId,JSON.stringify(caseRecord));
-      document.getElementById("databaseBadge").textContent="診所已上傳";
+      storeCaseLocally(caseRecord);
+      document.getElementById("databaseBadge").textContent="診所已建立";
       document.getElementById("databaseBadge").classList.add("ready");
-      document.getElementById("databaseStatus").textContent="案件 "+caseRecord.caseId+" 已建立於本機案件庫";
+      document.getElementById("databaseStatus").textContent="案件 "+caseRecord.caseId+" 已建立，可下載 JSON 傳給技工所";
       updateFlow();
     }
-    function readLabCase() {
-      const id=caseIdValue();
-      const saved=localStorage.getItem("oharaDentalCase:"+id);
-      if(!saved) {
-        alert("找不到此案件。請先由診所建立／上傳案件。");
-        return;
-      }
-      caseRecord=JSON.parse(saved);
+    function importCaseJson(file) {
+      const reader=new FileReader();
+      reader.onload=()=>{
+        try {
+          const imported=JSON.parse(reader.result);
+          if(!imported.caseId||!imported.clinic?.correctedLab)throw new Error("缺少病例編號或臨床校正資料");
+          applyImportedCase(imported);
+        } catch(error) {
+          alert("無法匯入案件："+error.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+    function applyImportedCase(imported) {
+      caseRecord=imported;
       caseRecord.status="lab_opened";
       caseRecord.updatedAt=new Date().toISOString();
-      localStorage.setItem("oharaDentalCase:"+id,JSON.stringify(caseRecord));
+      document.getElementById("caseId").value=caseRecord.caseId;
+      document.getElementById("toothNo").value=caseRecord.toothNo||"";
+      document.getElementById("caseNote").value=caseRecord.note||"";
+      shadeSelect.value=caseRecord.referenceShade||"A2";
+      if(caseRecord.clinic.device)document.getElementById("targetDevice").value=caseRecord.clinic.device;
+      if(caseRecord.clinic.baseline?.values) {
+        baselineProfiles.clinic[caseRecord.clinic.device]={...caseRecord.clinic.baseline,owner:"clinic",type:caseRecord.clinic.device};
+        localStorage.setItem("oharaDentalBaseline:clinic:"+caseRecord.clinic.device,JSON.stringify(baselineProfiles.clinic[caseRecord.clinic.device]));
+      }
+      const photo=caseRecord.clinic.photo;
+      if(photo?.dataUrl) {
+        states.target.imageDataUrl=photo.dataUrl;
+        states.target.fileName=photo.name||"clinical-photo.jpg";
+        if(caseRecord.clinic.samplePoints) {
+          states.target.points.tooth.x=caseRecord.clinic.samplePoints.tooth.x;
+          states.target.points.tooth.y=caseRecord.clinic.samplePoints.tooth.y;
+          states.target.points.shade.x=caseRecord.clinic.samplePoints.shade.x;
+          states.target.points.shade.y=caseRecord.clinic.samplePoints.shade.y;
+        }
+        const image=new Image();
+        image.onload=()=>{states.target.image=image;states.target.empty.classList.add("hidden");draw(states.target)};
+        image.src=photo.dataUrl;
+      } else {
+        states.target.corrected=caseRecord.clinic.correctedLab;
+        states.target.error=caseRecord.clinic.captureError;
+        setTriplet("target",states.target.corrected);
+      }
+      storeCaseLocally(caseRecord);
       document.getElementById("databaseBadge").textContent="技工所已讀取";
       document.getElementById("databaseBadge").classList.add("ready");
-      document.getElementById("databaseStatus").textContent="技工所已讀取案件 "+id+"，可進行瓷牙製作";
+      document.getElementById("databaseStatus").textContent="技工所已匯入案件 "+caseRecord.caseId+"，可查看臨床照片與校正後 Lab";
+      refreshBaselineProfiles();
       updateFlow();
+    }
+    function storeCaseLocally(record) {
+      const stored=JSON.parse(JSON.stringify(record));
+      if(stored.clinic?.photo)stored.clinic.photo.dataUrl=null;
+      localStorage.setItem("oharaDentalCase:"+stored.caseId,JSON.stringify(stored));
     }
     function downloadCaseJson() {
       if(!states.target.corrected) {
@@ -1314,6 +1378,33 @@
       link.click();
       setTimeout(()=>URL.revokeObjectURL(link.href),1000);
     }
+    function downloadCaseCsv() {
+      if(!states.target.corrected) {
+        alert("請先完成臨床照片取樣並建立案件。");
+        return;
+      }
+      caseRecord=buildCaseRecord(caseRecord?.status||"clinic_uploaded");
+      const clinic=caseRecord.clinic;
+      const rows=[
+        ["病例編號","牙位","備註","比色片色號","端別","設備","項目","L*","a*","b*","拍攝時間"],
+        [caseRecord.caseId,caseRecord.toothNo,caseRecord.note,caseRecord.referenceShade,"診所端",clinic.device,"基礎比色片",...(states.target.baselineLab||["","",""]),clinic.capturedAt||""],
+        [caseRecord.caseId,caseRecord.toothNo,caseRecord.note,caseRecord.referenceShade,"診所端",clinic.device,"照片比色片",...(states.target.points.shade.sample?.lab||["","",""]),clinic.capturedAt||""],
+        [caseRecord.caseId,caseRecord.toothNo,caseRecord.note,caseRecord.referenceShade,"診所端",clinic.device,"拍攝誤差（照片－基礎）",...(states.target.error||["","",""]),clinic.capturedAt||""],
+        [caseRecord.caseId,caseRecord.toothNo,caseRecord.note,caseRecord.referenceShade,"診所端",clinic.device,"自然牙校正後 Lab",...(clinic.correctedLab||["","",""]),clinic.capturedAt||""]
+      ];
+      const csv="\ufeff"+rows.map(row=>row.map(csvCell).join(",")).join("\r\n");
+      triggerDownload(csv,"text/csv;charset=utf-8",caseRecord.caseId+"_clinic.csv");
+    }
+    function downloadClinicPhoto() {
+      if(!states.target.imageDataUrl) {
+        alert("請先匯入臨床照片。");
+        return;
+      }
+      const link=document.createElement("a");
+      link.href=states.target.imageDataUrl;
+      link.download=(caseIdValue()+"_"+(states.target.fileName||"clinical-photo.jpg")).replace(/[\\/:*?"<>|]/g,"_");
+      link.click();
+    }
     function closeCase() {
       if(!lastResult) {
         alert("請先完成技工所成品照片取樣與色差計算。");
@@ -1324,7 +1415,7 @@
         return;
       }
       caseRecord=buildCaseRecord("closed");
-      localStorage.setItem("oharaDentalCase:"+caseRecord.caseId,JSON.stringify(caseRecord));
+      storeCaseLocally(caseRecord);
       document.getElementById("databaseBadge").textContent="已結案";
       document.getElementById("databaseBadge").classList.add("ready");
       document.getElementById("databaseStatus").textContent="案件 "+caseRecord.caseId+" 已保存色差並結案";
