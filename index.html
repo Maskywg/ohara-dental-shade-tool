@@ -109,6 +109,25 @@
       font-weight: 800;
     }
     .workflow span.done { border-color: rgba(75,211,155,.5); color: var(--green); background: rgba(75,211,155,.08); }
+    .purpose-banner {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 13px 16px;
+      border-bottom: 1px solid rgba(226,173,67,.35);
+      background: linear-gradient(90deg, rgba(226,173,67,.14), rgba(117,88,202,.08));
+    }
+    .purpose-banner strong {
+      padding: 5px 9px;
+      border-radius: 7px;
+      color: #18130a;
+      background: var(--gold);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .purpose-banner p { margin: 0; color: var(--text); font-size: 13px; line-height: 1.65; }
+    .purpose-banner small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
     .process-board {
       padding: 14px 16px;
       border-bottom: 1px solid var(--line);
@@ -459,6 +478,13 @@
         </div>
       </div>
 
+      <section class="purpose-banner" aria-label="工具目的">
+        <strong>工具目的</strong>
+        <p>協助牙科技師確認完成瓷牙的色系，是否與診所臨床自然牙的目標色彩偏離過多，並以校正後 Lab 與 ΔE₀₀ 作為修色及溝通依據。
+          <small>本工具用於影像比色、成品驗證與病例溝通，不取代牙醫師、牙科技師的專業判斷或分光測色儀。</small>
+        </p>
+      </section>
+
       <section class="process-board" aria-label="比色案件流程">
         <h2>大原牙醫瓷牙比色流程</h2>
         <div class="process-steps">
@@ -565,7 +591,7 @@
           </div>
           <div class="canvas-wrap" data-drop="target">
             <canvas id="targetCanvas" aria-label="實際臨床照取樣區"></canvas>
-            <div class="empty" id="targetEmpty"><span class="plus">＋</span><strong>匯入臨床牙＋比色板照片</strong><span>藍圈取樣牙齒，紫圈取樣照片內的已知色階</span></div>
+            <div class="empty" id="targetEmpty"><span class="plus">＋</span><strong>匯入臨床牙＋比色板照片</strong><span>比色片可使用 A2、A3 或其他已建立基準的色號；選單色號必須與照片相同</span></div>
           </div>
         </article>
 
@@ -621,8 +647,9 @@
         <section class="card">
           <h3 class="card-title"><span>設備基準與現場比色板驗證</span><span id="calBadge" class="status-pill">等待設備基準</span></h3>
           <div class="form-grid">
-            <label class="field full">照片中的已知色階
+            <label class="field full">臨床照片中實際放入的比色片色號
               <select id="referenceShade"></select>
+              <small style="margin-top:6px;color:var(--muted);line-height:1.5">照片放 A2 就選 A2；照片放 A3 就選 A3。也可選擇其他已完成基礎記錄的色號。</small>
             </label>
           </div>
           <div class="cal-status">
@@ -686,7 +713,7 @@
           <p>按下後會下載包含本次數值的 `.doc` 報告，並開啟 Google Docs。將檔案上傳至 Google Drive 即可轉為 Google 文件。</p>
         </section>
 
-        <section class="card"><p class="note"><strong>操作重點：</strong>先各自建立手機與相機的比色板基準。案件照片選擇實際拍攝設備；藍圈取樣牙齒，紫圈檢查照片內比色板套用基準後的殘餘色差。設備設定、燈光或鏡頭改變時應重新建立基準。</p></section>
+        <section class="card"><p class="note"><strong>操作重點：</strong>臨床照可放 A2、A3 或其他已建立基準的單一比色片。照片放哪個色號，選單就選同一色號；藍圈取樣牙齒，紫圈取樣該比色片。系統先計算拍攝誤差，再還原自然牙色彩，供技師確認完成瓷牙是否偏離目標色系。設備設定、燈光或鏡頭改變時應重新建立基準。</p></section>
       </div>
     </aside>
   </main>
