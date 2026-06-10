@@ -665,11 +665,13 @@
                 <tr><td>臨床照比色片</td><td id="targetShadeL">--</td><td id="targetShadeA">--</td><td id="targetShadeB">--</td></tr>
                 <tr><td>臨床誤差（照片－基礎）</td><td id="targetCorrL">--</td><td id="targetCorrA">--</td><td id="targetCorrB">--</td></tr>
                 <tr><td>技工所基礎值</td><td id="restorationBaseL">--</td><td id="restorationBaseA">--</td><td id="restorationBaseB">--</td></tr>
+                <tr><td>技工所環境參考值</td><td id="crossEnvL">--</td><td id="crossEnvA">--</td><td id="crossEnvB">--</td></tr>
                 <tr><td>瓷牙照比色片</td><td id="restorationShadeL">--</td><td id="restorationShadeA">--</td><td id="restorationShadeB">--</td></tr>
                 <tr><td>瓷牙誤差（照片－基礎）</td><td id="restorationCorrL">--</td><td id="restorationCorrA">--</td><td id="restorationCorrB">--</td></tr>
               </tbody>
             </table>
           </div>
+          <p class="note"><strong>跨環境基礎換算：</strong>技工所環境參考 Lab＝校正後臨床牙 Lab－（診所端基礎 Lab－技工所端基礎 Lab）。此數值供技師製作前參考，不取代完成瓷牙拍攝後的雙端獨立校正與 ΔE₀₀ 驗收。</p>
           <p class="note"><strong>兩端環境校正：</strong>診所端以「診所設備基準＋臨床照內比色片」校正自然牙；技工所端以「技工所設備基準＋瓷牙照內比色片」校正完成瓷牙。最後比較兩邊各自校正後的 Lab，藉此降低不同燈光、相機與環境造成的差異。</p>
         </section>
 
@@ -745,6 +747,7 @@
     const states = Object.fromEntries(["target","restoration"].map(side => [side,createState(side)]));
     let lastResult = null;
     let caseRecord = null;
+    let crossEnvironmentLab = null;
 
     function createState(side) {
       return {
@@ -1147,6 +1150,16 @@
         const swatch=document.getElementById(side+"Swatch");
         swatch.style.background=state.corrected?labToCss(state.corrected):"#625b52";
       });
+      const clinicLab=states.target.corrected;
+      const clinicBase=states.target.baselineLab;
+      const laboratoryBase=states.restoration.baselineLab;
+      crossEnvironmentLab=clinicLab&&clinicBase&&laboratoryBase
+        ?clinicLab.map((value,index)=>{
+          const converted=value-(clinicBase[index]-laboratoryBase[index]);
+          return index===0?clamp(converted,0,100):converted;
+        })
+        :null;
+      setTriplet("crossEnv",crossEnvironmentLab);
       const readyCount=["target","restoration"].filter(side=>!!states[side].corrected).length;
       document.getElementById("calBadge").textContent=readyCount===2?"兩張已套用設備基準":readyCount===1?"已校正一張":"等待設備基準與照片";
       document.getElementById("calBadge").classList.toggle("ready",readyCount===2);
@@ -1188,6 +1201,7 @@
         restorationShadeSample:states.restoration.points.shade.sample?.lab,
         targetError:states.target.error,
         restorationError:states.restoration.error,
+        crossEnvironmentLab,
         targetCorrection:states.target.correction,
         restorationCorrection:states.restoration.correction,
         targetDevice:states.target.device,
@@ -1231,6 +1245,7 @@
       <tr><td>臨床照片比色片</td>${lastResult.targetShadeSample.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
       <tr><td>臨床拍攝誤差（照片－基礎）</td>${lastResult.targetError.map(v=>`<td>${f(v)}</td>`).join("")}</tr>
       <tr><td>技工所基礎比色片</td>${lastResult.restorationBaseline.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
+      <tr><td>技工所環境參考值</td>${lastResult.crossEnvironmentLab.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
       <tr><td>瓷牙照片比色片</td>${lastResult.restorationShadeSample.map(v=>`<td>${v.toFixed(2)}</td>`).join("")}</tr>
       <tr><td>瓷牙拍攝誤差（照片－基礎）</td>${lastResult.restorationError.map(v=>`<td>${f(v)}</td>`).join("")}</tr></table>
       <h2>校正後比色結果</h2><p><strong>CIEDE2000 ΔE₀₀：${lastResult.delta.toFixed(2)}</strong>；臨床牙近似色階：${lastResult.shade.name}</p>
@@ -1260,6 +1275,7 @@
           clinic:states.target.baselineLab,
           laboratory:states.restoration.baselineLab
         },
+        crossEnvironmentReferenceLab:crossEnvironmentLab,
         clinic:{
           device:states.target.device,
           baseline:baselineProfiles.clinic[states.target.device],
@@ -1390,7 +1406,8 @@
         [caseRecord.caseId,caseRecord.toothNo,caseRecord.note,caseRecord.referenceShade,"診所端",clinic.device,"基礎比色片",...(states.target.baselineLab||["","",""]),clinic.capturedAt||""],
         [caseRecord.caseId,caseRecord.toothNo,caseRecord.note,caseRecord.referenceShade,"診所端",clinic.device,"照片比色片",...(states.target.points.shade.sample?.lab||["","",""]),clinic.capturedAt||""],
         [caseRecord.caseId,caseRecord.toothNo,caseRecord.note,caseRecord.referenceShade,"診所端",clinic.device,"拍攝誤差（照片－基礎）",...(states.target.error||["","",""]),clinic.capturedAt||""],
-        [caseRecord.caseId,caseRecord.toothNo,caseRecord.note,caseRecord.referenceShade,"診所端",clinic.device,"自然牙校正後 Lab",...(clinic.correctedLab||["","",""]),clinic.capturedAt||""]
+        [caseRecord.caseId,caseRecord.toothNo,caseRecord.note,caseRecord.referenceShade,"診所端",clinic.device,"自然牙校正後 Lab",...(clinic.correctedLab||["","",""]),clinic.capturedAt||""],
+        [caseRecord.caseId,caseRecord.toothNo,caseRecord.note,caseRecord.referenceShade,"技工所端",caseRecord.laboratory.device,"技工所環境參考 Lab",...(crossEnvironmentLab||["","",""]),""]
       ];
       const csv="\ufeff"+rows.map(row=>row.map(csvCell).join(",")).join("\r\n");
       triggerDownload(csv,"text/csv;charset=utf-8",caseRecord.caseId+"_clinic.csv");

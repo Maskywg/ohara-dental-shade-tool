@@ -18,6 +18,7 @@
 - 可另外下載臨床照片與案件 CSV，供傳檔、Excel 或 Google Sheets 使用
 - 診所端與技工所端分別收集手機、相機 A1–D4 共 16 色的 Lab 基礎資料庫
 - 基準資料可下載或匯入 JSON，也可匯出 CSV 至 Excel／Google Sheets
+- 額外列出「校正後臨床牙 Lab－（診所端基礎 Lab－技工所端基礎 Lab）」的技工所環境參考值
 
 ## 使用方式
 
